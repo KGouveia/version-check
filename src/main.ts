@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { checkCodexCliVersion } from './services/codexVersionCheck';
 import { checkJavaVersion } from './services/javaVersionCheck';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
@@ -43,12 +44,14 @@ const defaultDisplayName: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
   java: 'OpenJDK',
+  'codex-cli': 'Codex CLI',
 };
 
 const defaultDownloadUrl: Record<SoftwareKind, string> = {
   nodejs: 'https://nodejs.org/en/download',
   python: 'https://www.python.org/downloads/',
   java: 'https://adoptium.net/temurin/releases/',
+  'codex-cli': 'https://www.npmjs.com/package/@openai/codex',
 };
 
 const createTrackedSoftware = (kind: SoftwareKind, name: string): TrackedSoftware => ({
@@ -73,6 +76,8 @@ const checkTrackedSoftware = async (
       return checkPythonVersion(software);
     case 'java':
       return checkJavaVersion(software);
+    case 'codex-cli':
+      return checkCodexCliVersion(software);
     default:
       return Promise.resolve({
         ...software,
@@ -84,7 +89,10 @@ const checkTrackedSoftware = async (
 };
 
 const isSoftwareKind = (value: unknown): value is SoftwareKind =>
-  value === 'nodejs' || value === 'python' || value === 'java';
+  value === 'nodejs' ||
+  value === 'python' ||
+  value === 'java' ||
+  value === 'codex-cli';
 
 const registerIpcHandlers = () => {
   ipcMain.handle('software:list', async (): Promise<TrackedSoftware[]> => {
@@ -144,6 +152,7 @@ const registerIpcHandlers = () => {
       'https://nodejs.org/',
       'https://www.python.org/',
       'https://adoptium.net/',
+      'https://www.npmjs.com/package/@openai/codex',
     ];
 
     if (!trustedPrefixes.some((prefix) => url.startsWith(prefix))) {

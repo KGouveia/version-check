@@ -11,12 +11,14 @@ const defaultNameByKind: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
   java: 'OpenJDK',
+  'codex-cli': 'Codex CLI',
 };
 
 const kindOptions: Array<{ value: SoftwareKind; label: string }> = [
   { value: 'nodejs', label: 'Node.js' },
   { value: 'python', label: 'Python' },
   { value: 'java', label: 'OpenJDK' },
+  { value: 'codex-cli', label: 'Codex CLI' },
 ];
 
 export const AddSoftwareForm = ({ isAdding, onAdd }: AddSoftwareFormProps) => {
