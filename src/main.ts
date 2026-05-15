@@ -42,7 +42,7 @@ const createWindow = () => {
 const defaultDisplayName: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
-  java: 'Java JDK',
+  java: 'OpenJDK',
 };
 
 const defaultDownloadUrl: Record<SoftwareKind, string> = {

@@ -7,7 +7,7 @@ import { SoftwareTable } from './SoftwareTable';
 const kindLabels: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
-  java: 'Java JDK',
+  java: 'OpenJDK',
 };
 
 export const App = () => {
@@ -88,7 +88,7 @@ export const App = () => {
               Software Version Tracker
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Track Node.js, Python, and Java JDK against current public releases.
+              Track Node.js, Python, and OpenJDK against current public releases.
             </p>
           </div>
           <button

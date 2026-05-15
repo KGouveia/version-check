@@ -10,13 +10,13 @@ interface AddSoftwareFormProps {
 const defaultNameByKind: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
-  java: 'Java JDK',
+  java: 'OpenJDK',
 };
 
 const kindOptions: Array<{ value: SoftwareKind; label: string }> = [
   { value: 'nodejs', label: 'Node.js' },
   { value: 'python', label: 'Python' },
-  { value: 'java', label: 'Java JDK' },
+  { value: 'java', label: 'OpenJDK' },
 ];
 
 export const AddSoftwareForm = ({ isAdding, onAdd }: AddSoftwareFormProps) => {

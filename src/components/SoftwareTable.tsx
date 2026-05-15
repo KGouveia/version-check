@@ -1,5 +1,6 @@
 import { Download, Trash2 } from 'lucide-react';
 import type { TrackedSoftware } from '../types';
+import { latestVersionCellTone } from '../services/versionCompareDisplay';
 import { StatusBadge } from './StatusBadge';
 
 interface SoftwareTableProps {
@@ -22,6 +23,15 @@ const formatDate = (date: string | null) => {
 
 const formatLatestMinorVersion = (item: TrackedSoftware) =>
   item.latestSameReleaseLineVersion ?? 'Unavailable';
+
+const toneClass: Record<
+  ReturnType<typeof latestVersionCellTone>,
+  string
+> = {
+  neutral: 'text-zinc-300',
+  good: 'text-emerald-400',
+  bad: 'text-red-400',
+};
 
 export const SoftwareTable = ({
   software,
@@ -52,7 +62,19 @@ export const SoftwareTable = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-800">
-          {software.map((item) => (
+          {software.map((item) => {
+            const minorTone = latestVersionCellTone(
+              item.kind,
+              item.currentVersion,
+              item.latestSameReleaseLineVersion,
+            );
+            const latestTone = latestVersionCellTone(
+              item.kind,
+              item.currentVersion,
+              item.latestVersion,
+            );
+
+            return (
             <tr key={item.id} className="bg-zinc-950/80">
               <td className="px-6 py-4">
                 <div className="font-medium text-zinc-100">{item.name}</div>
@@ -66,12 +88,15 @@ export const SoftwareTable = ({
                 {item.currentVersion ?? 'Unavailable'}
               </td>
               <td
-                className="px-4 py-4 font-mono text-zinc-300"
-                title="Latest release matching your local major.minor line (e.g. all 3.13.x for Python 3.13.3)"
+                className={`px-4 py-4 font-mono ${toneClass[minorTone]}`}
+                title="Latest release matching your local major.minor line (e.g. all 3.13.x for Python 3.13.3). Green when your local version is the same as or newer than this; red when you are behind."
               >
                 {formatLatestMinorVersion(item)}
               </td>
-              <td className="px-4 py-4 font-mono text-zinc-300">
+              <td
+                className={`px-4 py-4 font-mono ${toneClass[latestTone]}`}
+                title="Green when your local version is the same as or newer than this; red when you are behind."
+              >
                 {item.latestVersion ?? 'Unavailable'}
               </td>
               <td className="px-4 py-4">
@@ -105,7 +130,8 @@ export const SoftwareTable = ({
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
