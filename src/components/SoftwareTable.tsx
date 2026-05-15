@@ -20,6 +20,9 @@ const formatDate = (date: string | null) => {
   }).format(new Date(date));
 };
 
+const formatLatestMinorVersion = (item: TrackedSoftware) =>
+  item.latestSameReleaseLineVersion ?? 'Unavailable';
+
 export const SoftwareTable = ({
   software,
   isBusy,
@@ -41,6 +44,7 @@ export const SoftwareTable = ({
           <tr>
             <th className="px-6 py-3 font-semibold">Software</th>
             <th className="px-4 py-3 font-semibold">Local Version</th>
+            <th className="px-4 py-3 font-semibold">Latest Minor Version</th>
             <th className="px-4 py-3 font-semibold">Latest Version</th>
             <th className="px-4 py-3 font-semibold">Status</th>
             <th className="px-4 py-3 font-semibold">Last Checked</th>
@@ -60,6 +64,12 @@ export const SoftwareTable = ({
               </td>
               <td className="px-4 py-4 font-mono text-zinc-300">
                 {item.currentVersion ?? 'Unavailable'}
+              </td>
+              <td
+                className="px-4 py-4 font-mono text-zinc-300"
+                title="Latest release matching your local major.minor line (e.g. all 3.13.x for Python 3.13.3)"
+              >
+                {formatLatestMinorVersion(item)}
               </td>
               <td className="px-4 py-4 font-mono text-zinc-300">
                 {item.latestVersion ?? 'Unavailable'}

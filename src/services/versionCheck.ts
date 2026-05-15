@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
+import { compareVersions, normalizeVersion } from './semver';
+import { resolveBehindTierForKind } from './versionKindTiers';
 
 const execFileAsync = promisify(execFile);
 const nodeReleaseIndexUrl = 'https://nodejs.org/dist/index.json';
@@ -10,41 +12,21 @@ interface NodeRelease {
   version: string;
 }
 
-const normalizeVersion = (version: string) => version.trim().replace(/^v/i, '');
-
-const parseVersionParts = (version: string): [number, number, number] => {
-  const [major = '0', minor = '0', patch = '0'] = normalizeVersion(version).split('.');
-
-  return [
-    Number.parseInt(major, 10) || 0,
-    Number.parseInt(minor, 10) || 0,
-    Number.parseInt(patch, 10) || 0,
-  ];
-};
-
-const compareVersions = (left: string, right: string): number => {
-  const leftParts = parseVersionParts(left);
-  const rightParts = parseVersionParts(right);
-
-  for (let index = 0; index < leftParts.length; index += 1) {
-    if (leftParts[index] > rightParts[index]) {
-      return 1;
-    }
-
-    if (leftParts[index] < rightParts[index]) {
-      return -1;
-    }
-  }
-
-  return 0;
-};
-
 const getLocalNodeVersion = async (): Promise<string> => {
   const { stdout } = await execFileAsync('node', ['-v'], { shell: false });
   return stdout.trim();
 };
 
-const getLatestNodeVersion = async (): Promise<string> => {
+const nodeSameReleaseLinePrefix = (current: string): string | null => {
+  const core = normalizeVersion(current).split('-')[0]?.split('+')[0] ?? '';
+  const match = core.match(/^(\d+\.\d+)\./);
+
+  return match?.[1] ? `${match[1]}.` : null;
+};
+
+const fetchNodeVersionInfo = async (
+  currentVersion: string | null,
+): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
   const response = await fetch(nodeReleaseIndexUrl);
 
   if (!response.ok) {
@@ -52,16 +34,43 @@ const getLatestNodeVersion = async (): Promise<string> => {
   }
 
   const releases = (await response.json()) as NodeRelease[];
-  const latestStableRelease = releases.find(
-    (release) =>
-      typeof release.version === 'string' && !release.version.includes('-'),
+  const stable = releases.filter(
+    (release) => typeof release.version === 'string' && !release.version.includes('-'),
   );
 
-  if (!latestStableRelease) {
+  let latestVersion: string | null = null;
+
+  for (const release of stable) {
+    if (!latestVersion || compareVersions(release.version, latestVersion) > 0) {
+      latestVersion = release.version;
+    }
+  }
+
+  if (!latestVersion) {
     throw new Error('No stable Node.js release was found.');
   }
 
-  return latestStableRelease.version;
+  const prefix = currentVersion ? nodeSameReleaseLinePrefix(currentVersion) : null;
+  let latestSameReleaseLineVersion: string | null = null;
+
+  if (prefix) {
+    for (const release of stable) {
+      const core = normalizeVersion(release.version).split('-')[0]?.split('+')[0] ?? '';
+
+      if (!core.startsWith(prefix)) {
+        continue;
+      }
+
+      if (
+        !latestSameReleaseLineVersion ||
+        compareVersions(release.version, latestSameReleaseLineVersion) > 0
+      ) {
+        latestSameReleaseLineVersion = release.version;
+      }
+    }
+  }
+
+  return { latestVersion, latestSameReleaseLineVersion };
 };
 
 export const checkNodeVersion = async (
@@ -70,6 +79,7 @@ export const checkNodeVersion = async (
   const errors: string[] = [];
   let currentVersion: string | null = null;
   let latestVersion: string | null = null;
+  let latestSameReleaseLineVersion: string | null = null;
 
   try {
     currentVersion = await getLocalNodeVersion();
@@ -78,22 +88,23 @@ export const checkNodeVersion = async (
   }
 
   try {
-    latestVersion = await getLatestNodeVersion();
+    const info = await fetchNodeVersionInfo(currentVersion);
+    latestVersion = info.latestVersion;
+    latestSameReleaseLineVersion = info.latestSameReleaseLineVersion;
   } catch {
     errors.push('Unable to fetch the latest Node.js release.');
   }
 
   const status =
     currentVersion && latestVersion
-      ? compareVersions(currentVersion, latestVersion) >= 0
-        ? 'up-to-date'
-        : 'outdated'
+      ? resolveBehindTierForKind('nodejs', currentVersion, latestVersion)
       : 'error';
 
   return {
     ...software,
     currentVersion,
     latestVersion,
+    latestSameReleaseLineVersion,
     status,
     downloadUrl: nodeDownloadUrl,
     lastCheckedAt: new Date().toISOString(),

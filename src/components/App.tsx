@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import type { TrackedSoftware } from '../types';
+import type { SoftwareKind, TrackedSoftware } from '../types';
 import { AddSoftwareForm } from './AddSoftwareForm';
 import { SoftwareTable } from './SoftwareTable';
+
+const kindLabels: Record<SoftwareKind, string> = {
+  nodejs: 'Node.js',
+  python: 'Python',
+  java: 'Java JDK',
+};
 
 export const App = () => {
   const [software, setSoftware] = useState<TrackedSoftware[]>([]);
@@ -21,18 +27,18 @@ export const App = () => {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const addSoftware = async (name: string) => {
+  const addSoftware = async (name: string, kind: SoftwareKind) => {
     setIsAdding(true);
     setError(null);
 
     try {
       const updatedSoftware = await window.versionTracker.addSoftware({
         name,
-        kind: 'nodejs',
+        kind,
       });
       setSoftware(updatedSoftware);
     } catch {
-      setError('Unable to add Node.js tracker.');
+      setError(`Unable to add ${kindLabels[kind]} tracker.`);
     } finally {
       setIsAdding(false);
     }
@@ -82,7 +88,7 @@ export const App = () => {
               Software Version Tracker
             </h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Track installed Node.js against the latest public release.
+              Track Node.js, Python, and Java JDK against current public releases.
             </p>
           </div>
           <button

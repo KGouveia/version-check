@@ -1,6 +1,12 @@
-export type SoftwareKind = 'nodejs';
+export type SoftwareKind = 'nodejs' | 'python' | 'java';
 
-export type VersionStatus = 'unknown' | 'up-to-date' | 'outdated' | 'error';
+export type VersionStatus =
+  | 'unknown'
+  | 'up-to-date'
+  | 'outdated'
+  | 'outdated-major'
+  | 'outdated-minor'
+  | 'error';
 
 export interface TrackedSoftware {
   id: string;
@@ -8,6 +14,11 @@ export interface TrackedSoftware {
   kind: SoftwareKind;
   currentVersion: string | null;
   latestVersion: string | null;
+  /**
+   * Latest stable release on the same semver major.minor line as local (e.g. max 3.13.z when local is 3.13.3).
+   * Node: from index.json; Python: from python.org API; Java: same-family Temurin GA as latestVersion.
+   */
+  latestSameReleaseLineVersion?: string | null;
   status: VersionStatus;
   downloadUrl: string;
   lastCheckedAt: string | null;

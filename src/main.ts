@@ -2,9 +2,11 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { checkJavaVersion } from './services/javaVersionCheck';
+import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { checkNodeVersion } from './services/versionCheck';
-import type { AddSoftwareInput, TrackedSoftware } from './types';
+import type { AddSoftwareInput, SoftwareKind, TrackedSoftware } from './types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -37,17 +39,52 @@ const createWindow = () => {
 
 };
 
-const createNodeSoftware = (name: string): TrackedSoftware => ({
+const defaultDisplayName: Record<SoftwareKind, string> = {
+  nodejs: 'Node.js',
+  python: 'Python',
+  java: 'Java JDK',
+};
+
+const defaultDownloadUrl: Record<SoftwareKind, string> = {
+  nodejs: 'https://nodejs.org/en/download',
+  python: 'https://www.python.org/downloads/',
+  java: 'https://adoptium.net/temurin/releases/',
+};
+
+const createTrackedSoftware = (kind: SoftwareKind, name: string): TrackedSoftware => ({
   id: crypto.randomUUID(),
-  name: name.trim() || 'Node.js',
-  kind: 'nodejs',
+  name: name.trim() || defaultDisplayName[kind],
+  kind,
   currentVersion: null,
   latestVersion: null,
   status: 'unknown',
-  downloadUrl: 'https://nodejs.org/en/download',
+  downloadUrl: defaultDownloadUrl[kind],
   lastCheckedAt: null,
   error: null,
 });
+
+const checkTrackedSoftware = async (
+  software: TrackedSoftware,
+): Promise<TrackedSoftware> => {
+  switch (software.kind) {
+    case 'nodejs':
+      return checkNodeVersion(software);
+    case 'python':
+      return checkPythonVersion(software);
+    case 'java':
+      return checkJavaVersion(software);
+    default:
+      return Promise.resolve({
+        ...software,
+        status: 'error',
+        error: 'Unsupported software kind in storage.',
+        lastCheckedAt: new Date().toISOString(),
+      });
+  }
+};
+
+const isSoftwareKind = (value: unknown): value is SoftwareKind =>
+  value === 'nodejs' || value === 'python' || value === 'java';
 
 const registerIpcHandlers = () => {
   ipcMain.handle('software:list', async (): Promise<TrackedSoftware[]> => {
@@ -57,21 +94,23 @@ const registerIpcHandlers = () => {
   ipcMain.handle(
     'software:add',
     async (_event, input: AddSoftwareInput): Promise<TrackedSoftware[]> => {
-      if (input.kind !== 'nodejs') {
-        throw new Error('Only Node.js tracking is supported in the MVP.');
+      if (!isSoftwareKind(input.kind)) {
+        throw new Error('Unsupported software kind.');
       }
 
       const trackedSoftware = await readTrackedSoftware();
-      const existingNodeIndex = trackedSoftware.findIndex(
-        (software) => software.kind === 'nodejs',
+      const existingIndex = trackedSoftware.findIndex(
+        (software) => software.kind === input.kind,
       );
 
-      if (existingNodeIndex >= 0) {
-        trackedSoftware[existingNodeIndex] = await checkNodeVersion(
-          trackedSoftware[existingNodeIndex],
+      if (existingIndex >= 0) {
+        trackedSoftware[existingIndex] = await checkTrackedSoftware(
+          trackedSoftware[existingIndex],
         );
       } else {
-        trackedSoftware.push(await checkNodeVersion(createNodeSoftware(input.name)));
+        trackedSoftware.push(
+          await checkTrackedSoftware(createTrackedSoftware(input.kind, input.name)),
+        );
       }
 
       await writeTrackedSoftware(trackedSoftware);
@@ -93,9 +132,7 @@ const registerIpcHandlers = () => {
   ipcMain.handle('software:rescan-all', async (): Promise<TrackedSoftware[]> => {
     const trackedSoftware = await readTrackedSoftware();
     const updatedSoftware = await Promise.all(
-      trackedSoftware.map((software) =>
-        software.kind === 'nodejs' ? checkNodeVersion(software) : software,
-      ),
+      trackedSoftware.map((software) => checkTrackedSoftware(software)),
     );
 
     await writeTrackedSoftware(updatedSoftware);
@@ -103,7 +140,13 @@ const registerIpcHandlers = () => {
   });
 
   ipcMain.handle('software:open-download', async (_event, url: string): Promise<void> => {
-    if (!url.startsWith('https://nodejs.org/')) {
+    const trustedPrefixes = [
+      'https://nodejs.org/',
+      'https://www.python.org/',
+      'https://adoptium.net/',
+    ];
+
+    if (!trustedPrefixes.some((prefix) => url.startsWith(prefix))) {
       throw new Error('Untrusted download URL.');
     }
 
