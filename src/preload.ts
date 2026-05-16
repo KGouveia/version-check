@@ -21,4 +21,6 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('deps:change-package-json'),
   openNpmPackage: (packageName: string): Promise<void> =>
     ipcRenderer.invoke('deps:open-npm-package', packageName),
+  exportDependencyReport: (report: DependencyAnalysisReport): Promise<{ filePath: string }> =>
+    ipcRenderer.invoke('deps:export-report', report),
 });

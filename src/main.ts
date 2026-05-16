@@ -1,8 +1,13 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { checkCodexCliVersion } from './services/codexVersionCheck';
+import {
+  dependencyAnalysisExportPath,
+  formatDependencyAnalysisMarkdown,
+} from './services/dependencyExport';
 import {
   analyzeDependencies,
   rescanDependencies,
@@ -283,6 +288,29 @@ const registerIpcHandlers = () => {
     const url = npmPackagePageUrl(packageName.trim());
     await shell.openExternal(url);
   });
+
+  ipcMain.handle(
+    'deps:export-report',
+    async (
+      _event,
+      report: DependencyAnalysisReport,
+    ): Promise<{ filePath: string }> => {
+      if (
+        !report ||
+        typeof report.packageJsonPath !== 'string' ||
+        !report.packageJsonPath.trim()
+      ) {
+        throw new Error('Invalid dependency analysis report.');
+      }
+
+      const filePath = dependencyAnalysisExportPath(report.packageJsonPath);
+      const content = formatDependencyAnalysisMarkdown(report);
+
+      await writeFile(filePath, content, 'utf8');
+
+      return { filePath };
+    },
+  );
 };
 
 // This method will be called when Electron has finished

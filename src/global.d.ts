@@ -13,6 +13,9 @@ declare global {
       rescanDependencies: (report: DependencyAnalysisReport) => Promise<DependencyAnalysisReport>;
       changePackageJson: () => Promise<DependencyAnalysisReport>;
       openNpmPackage: (packageName: string) => Promise<void>;
+      exportDependencyReport: (
+        report: DependencyAnalysisReport,
+      ) => Promise<{ filePath: string }>;
     };
   }
 }

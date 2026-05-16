@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileSearch, RefreshCw } from 'lucide-react';
+import { FileDown, FileSearch, RefreshCw } from 'lucide-react';
 import type { DependencyAnalysisReport } from '../types';
 import { DependencyTable } from './DependencyTable';
 
@@ -9,8 +9,10 @@ export const DependencyAnalyzerApp = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [isChangingFile, setIsChangingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const isBusy = isScanning || isChangingFile;
+  const isBusy = isScanning || isChangingFile || isExporting;
 
   useEffect(() => {
     window.versionTracker
@@ -27,6 +29,7 @@ export const DependencyAnalyzerApp = () => {
 
     setIsScanning(true);
     setError(null);
+    setExportMessage(null);
 
     try {
       const updated = await window.versionTracker.rescanDependencies(report);
@@ -41,6 +44,7 @@ export const DependencyAnalyzerApp = () => {
   const changePackageJson = async () => {
     setIsChangingFile(true);
     setError(null);
+    setExportMessage(null);
 
     try {
       const updated = await window.versionTracker.changePackageJson();
@@ -62,6 +66,25 @@ export const DependencyAnalyzerApp = () => {
       await window.versionTracker.openNpmPackage(packageName);
     } catch {
       setError('Unable to open the npm package page.');
+    }
+  };
+
+  const exportAnalysis = async () => {
+    if (!report) {
+      return;
+    }
+
+    setIsExporting(true);
+    setError(null);
+    setExportMessage(null);
+
+    try {
+      const { filePath } = await window.versionTracker.exportDependencyReport(report);
+      setExportMessage(`Exported to ${filePath}`);
+    } catch {
+      setError('Unable to export dependency analysis.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -99,6 +122,15 @@ export const DependencyAnalyzerApp = () => {
             </button>
             <button
               type="button"
+              onClick={exportAnalysis}
+              disabled={isBusy || isLoading || !report}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileDown size={16} aria-hidden="true" />
+              {isExporting ? 'Exporting…' : 'Export analysis'}
+            </button>
+            <button
+              type="button"
               onClick={rescan}
               disabled={isBusy || isLoading || !report}
               className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
@@ -114,6 +146,12 @@ export const DependencyAnalyzerApp = () => {
         </header>
 
         <section className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/20">
+          {exportMessage && (
+            <div className="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-3 text-sm text-emerald-200">
+              {exportMessage}
+            </div>
+          )}
+
           {error && (
             <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
               {error}
