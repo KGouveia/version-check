@@ -1,36 +1,27 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
-import { normalizeJavaForCompare } from './javaVersionNormalize';
-import { compareVersions } from './semver';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const execFileAsync = promisify(execFile);
 
-const adoptiumVendor = 'eclipse';
-const javaDownloadBase = 'https://adoptium.net/temurin/releases/';
+const openJdkLandingUrl = 'https://openjdk.org/';
+const openJdkDownloadBase = 'https://jdk.java.net/';
+const openJdkCurrentReleaseApi = 'https://java.oraclecloud.com/currentJavaReleases';
+const openJdkVersionsApi = 'https://java.oraclecloud.com/javaVersions';
 
-const mapOs = (): string => {
-  switch (process.platform) {
-    case 'darwin':
-      return 'mac';
-    case 'win32':
-      return 'windows';
-    default:
-      return 'linux';
-  }
-};
+interface CurrentJavaReleaseResponse {
+  releaseVersion?: string;
+  jdkDetails?: {
+    latestReleaseVersion?: string;
+  };
+}
 
-const mapArch = (): string => {
-  switch (process.arch) {
-    case 'x64':
-      return 'x64';
-    case 'arm64':
-      return 'aarch64';
-    default:
-      return process.arch;
-  }
-};
+interface JavaVersionsResponse {
+  items?: Array<{
+    latestReleaseVersion?: string;
+  }>;
+}
 
 const parseJavaVersionLine = (stderr: string): { display: string; major: number } => {
   const firstLine = stderr.split(/\r?\n/)[0] ?? '';
@@ -60,62 +51,39 @@ const getLocalJavaVersion = async (): Promise<{ display: string; major: number }
   return parseJavaVersionLine(stderr);
 };
 
-interface AdoptiumFeatureRelease {
-  version_data?: {
-    openjdk_version?: string;
-    semver?: string;
-  };
-}
+const getLatestOpenJdkForMajor = async (major: number): Promise<string> => {
+  const currentResponse = await fetch(`${openJdkCurrentReleaseApi}/${major}`);
 
-const getLatestTemurinForMajor = async (major: number): Promise<string> => {
-  const os = mapOs();
-  const arch = mapArch();
-  const url = new URL(
-    `https://api.adoptium.net/v3/assets/feature_releases/${major}/ga`,
-  );
-  url.searchParams.set('vendor', adoptiumVendor);
-  url.searchParams.set('image_type', 'jdk');
-  url.searchParams.set('architecture', arch);
-  url.searchParams.set('heap_size', 'normal');
-  url.searchParams.set('jvm_impl', 'hotspot');
-  url.searchParams.set('os', os);
-  url.searchParams.set('page_size', '50');
+  if (currentResponse.ok) {
+    const data = (await currentResponse.json()) as CurrentJavaReleaseResponse;
+    const version = data.releaseVersion ?? data.jdkDetails?.latestReleaseVersion;
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Adoptium API returned HTTP ${response.status}.`);
-  }
-
-  const releases = (await response.json()) as AdoptiumFeatureRelease[];
-  let best: string | null = null;
-
-  for (const release of releases) {
-    const candidate =
-      typeof release.version_data?.openjdk_version === 'string'
-        ? release.version_data.openjdk_version
-        : typeof release.version_data?.semver === 'string'
-          ? release.version_data.semver
-          : null;
-
-    if (!candidate) {
-      continue;
-    }
-
-    if (!best || compareVersions(normalizeJavaForCompare(candidate), normalizeJavaForCompare(best)) > 0) {
-      best = candidate;
+    if (version) {
+      return version;
     }
   }
 
-  if (!best) {
-    throw new Error(`No Temurin GA release found for Java ${major}.`);
+  const versionsUrl = new URL(openJdkVersionsApi);
+  versionsUrl.searchParams.set('jdkVersion', String(major));
+
+  const versionsResponse = await fetch(versionsUrl);
+
+  if (!versionsResponse.ok) {
+    throw new Error(`OpenJDK release API returned HTTP ${versionsResponse.status}.`);
   }
 
-  return best;
+  const versionsData = (await versionsResponse.json()) as JavaVersionsResponse;
+  const latest = versionsData.items?.[0]?.latestReleaseVersion;
+
+  if (!latest) {
+    throw new Error(`No OpenJDK release found for Java ${major}.`);
+  }
+
+  return latest;
 };
 
 const buildDownloadUrl = (major: number) =>
-  `${javaDownloadBase}?version=${major}`;
+  major > 0 ? `${openJdkDownloadBase}${major}/` : openJdkLandingUrl;
 
 export const checkJavaVersion = async (
   software: TrackedSoftware,
@@ -135,12 +103,12 @@ export const checkJavaVersion = async (
 
   try {
     if (major > 0) {
-      latestVersion = await getLatestTemurinForMajor(major);
+      latestVersion = await getLatestOpenJdkForMajor(major);
     } else {
       throw new Error('Missing Java major version.');
     }
   } catch {
-    errors.push('Unable to fetch the latest Eclipse Temurin release for this major version.');
+    errors.push('Unable to fetch the latest OpenJDK release for this major version.');
   }
 
   const status =
@@ -154,7 +122,7 @@ export const checkJavaVersion = async (
     latestVersion,
     latestSameReleaseLineVersion: latestVersion,
     status,
-    downloadUrl: major > 0 ? buildDownloadUrl(major) : `${javaDownloadBase}`,
+    downloadUrl: buildDownloadUrl(major),
     lastCheckedAt: new Date().toISOString(),
     error: errors.length > 0 ? errors.join(' ') : null,
   };

@@ -8,6 +8,7 @@ const kindLabels: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
   java: 'OpenJDK',
+  maven: 'Maven',
   'codex-cli': 'Codex CLI',
 };
 

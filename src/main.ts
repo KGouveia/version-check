@@ -13,6 +13,7 @@ import {
   rescanDependencies,
 } from './services/dependencyVersionCheck';
 import { checkJavaVersion } from './services/javaVersionCheck';
+import { checkMavenVersion } from './services/mavenVersionCheck';
 import { parsePackageJsonDependencies } from './services/packageJsonAnalyzer';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
@@ -122,13 +123,15 @@ const defaultDisplayName: Record<SoftwareKind, string> = {
   nodejs: 'Node.js',
   python: 'Python',
   java: 'OpenJDK',
+  maven: 'Maven',
   'codex-cli': 'Codex CLI',
 };
 
 const defaultDownloadUrl: Record<SoftwareKind, string> = {
   nodejs: 'https://nodejs.org/en/download',
   python: 'https://www.python.org/downloads/',
-  java: 'https://adoptium.net/temurin/releases/',
+  java: 'https://openjdk.org/',
+  maven: 'https://maven.apache.org/download.cgi',
   'codex-cli': 'https://www.npmjs.com/package/@openai/codex',
 };
 
@@ -154,6 +157,8 @@ const checkTrackedSoftware = async (
       return checkPythonVersion(software);
     case 'java':
       return checkJavaVersion(software);
+    case 'maven':
+      return checkMavenVersion(software);
     case 'codex-cli':
       return checkCodexCliVersion(software);
     default:
@@ -170,6 +175,7 @@ const isSoftwareKind = (value: unknown): value is SoftwareKind =>
   value === 'nodejs' ||
   value === 'python' ||
   value === 'java' ||
+  value === 'maven' ||
   value === 'codex-cli';
 
 const registerIpcHandlers = () => {
@@ -229,7 +235,9 @@ const registerIpcHandlers = () => {
     const trustedPrefixes = [
       'https://nodejs.org/',
       'https://www.python.org/',
-      'https://adoptium.net/',
+      'https://openjdk.org/',
+      'https://jdk.java.net/',
+      'https://maven.apache.org/',
       'https://www.npmjs.com/package/@openai/codex',
     ];
 

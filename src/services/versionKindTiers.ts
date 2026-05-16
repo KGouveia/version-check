@@ -15,7 +15,7 @@ export const resolveBehindTierForKind = (
     return 'up-to-date';
   }
 
-  if (kind === 'python') {
+  if (kind === 'python' || kind === 'maven') {
     const [c0, c1] = parseVersionParts(comparableCurrent);
     const [l0, l1] = parseVersionParts(comparableLatest);
 
