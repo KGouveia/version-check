@@ -42,7 +42,7 @@ export const AddSoftwareForm = ({ isAdding, onAdd }: AddSoftwareFormProps) => {
       <label className="flex min-w-[10rem] flex-col gap-2">
         <span className="text-sm font-medium text-zinc-300">Software kind</span>
         <select
-          className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+          className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 outline-hidden transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           value={kind}
           onChange={(event) => setKind(event.target.value as SoftwareKind)}
           disabled={isAdding}
@@ -58,7 +58,7 @@ export const AddSoftwareForm = ({ isAdding, onAdd }: AddSoftwareFormProps) => {
       <label className="flex min-w-[12rem] flex-1 flex-col gap-2">
         <span className="text-sm font-medium text-zinc-300">Display name</span>
         <input
-          className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+          className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 outline-hidden transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={defaultNameByKind[kind]}
