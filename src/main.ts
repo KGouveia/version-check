@@ -14,12 +14,28 @@ import {
 } from './services/dependencyVersionCheck';
 import { checkJavaVersion } from './services/javaVersionCheck';
 import { checkMavenVersion } from './services/mavenVersionCheck';
+import {
+  mavenDependencyAnalysisExportPath,
+  formatMavenDependencyAnalysisMarkdown,
+} from './services/mavenDependencyExport';
+import {
+  analyzeMavenDependencies,
+  rescanMavenDependencies,
+} from './services/mavenDependencyVersionCheck';
+import { mavenArtifactPageUrl } from './services/mavenCentral';
+import { parsePomXmlDependencies } from './services/pomXmlAnalyzer';
 import { parsePackageJsonDependencies } from './services/packageJsonAnalyzer';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { checkNodeVersion } from './services/versionCheck';
 import { npmPackagePageUrl } from './services/npmRegistry';
-import type { AddSoftwareInput, DependencyAnalysisReport, SoftwareKind, TrackedSoftware } from './types';
+import type {
+  AddSoftwareInput,
+  DependencyAnalysisReport,
+  MavenDependencyAnalysisReport,
+  SoftwareKind,
+  TrackedSoftware,
+} from './types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -28,9 +44,13 @@ if (started) {
 
 let pendingDependencyReport: DependencyAnalysisReport | null = null;
 let dependencyWindow: BrowserWindow | null = null;
+let pendingMavenDependencyReport: MavenDependencyAnalysisReport | null = null;
+let mavenDependencyWindow: BrowserWindow | null = null;
 
 const NPM_PACKAGE_NAME_PATTERN =
   /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i;
+
+const MAVEN_COORDINATE_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 
 const webPreferences = {
   preload: path.join(__dirname, 'preload.js'),
@@ -92,6 +112,30 @@ const createDependencyWindow = () => {
   loadRenderer(dependencyWindow, 'dependencies');
 };
 
+const createMavenDependencyWindow = () => {
+  if (mavenDependencyWindow && !mavenDependencyWindow.isDestroyed()) {
+    mavenDependencyWindow.focus();
+    mavenDependencyWindow.webContents.reload();
+    return;
+  }
+
+  mavenDependencyWindow = new BrowserWindow({
+    width: 1120,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
+    title: 'Maven dependency versions',
+    backgroundColor: '#09090b',
+    webPreferences,
+  });
+
+  mavenDependencyWindow.on('closed', () => {
+    mavenDependencyWindow = null;
+  });
+
+  loadRenderer(mavenDependencyWindow, 'maven-dependencies');
+};
+
 const pickPackageJson = async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -117,6 +161,31 @@ const analyzePackageJsonAtPath = async (
 ): Promise<DependencyAnalysisReport> => {
   const { projectLabel, dependencies } = await parsePackageJsonDependencies(packageJsonPath);
   return analyzeDependencies(packageJsonPath, projectLabel, dependencies);
+};
+
+const pickPomXml = async (): Promise<string | null> => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'pom.xml', extensions: ['xml'] }],
+    title: 'Select pom.xml',
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const filePath = result.filePaths[0];
+
+  if (path.basename(filePath) !== 'pom.xml') {
+    throw new Error('Please select a file named pom.xml.');
+  }
+
+  return filePath;
+};
+
+const analyzePomAtPath = async (pomXmlPath: string): Promise<MavenDependencyAnalysisReport> => {
+  const { projectLabel, dependencies } = await parsePomXmlDependencies(pomXmlPath);
+  return analyzeMavenDependencies(pomXmlPath, projectLabel, dependencies);
 };
 
 const defaultDisplayName: Record<SoftwareKind, string> = {
@@ -313,6 +382,96 @@ const registerIpcHandlers = () => {
 
       const filePath = dependencyAnalysisExportPath(report.packageJsonPath);
       const content = formatDependencyAnalysisMarkdown(report);
+
+      await writeFile(filePath, content, 'utf8');
+
+      return { filePath };
+    },
+  );
+
+  ipcMain.handle('maven-deps:open-analyzer', async (): Promise<void> => {
+    const pomXmlPath = await pickPomXml();
+
+    if (!pomXmlPath) {
+      return;
+    }
+
+    pendingMavenDependencyReport = await analyzePomAtPath(pomXmlPath);
+    createMavenDependencyWindow();
+  });
+
+  ipcMain.handle(
+    'maven-deps:get-report',
+    async (): Promise<MavenDependencyAnalysisReport> => {
+      if (!pendingMavenDependencyReport) {
+        throw new Error('No Maven dependency analysis is available.');
+      }
+
+      return pendingMavenDependencyReport;
+    },
+  );
+
+  ipcMain.handle(
+    'maven-deps:rescan',
+    async (
+      _event,
+      report: MavenDependencyAnalysisReport,
+    ): Promise<MavenDependencyAnalysisReport> => {
+      const updated = await rescanMavenDependencies(report);
+      pendingMavenDependencyReport = updated;
+      return updated;
+    },
+  );
+
+  ipcMain.handle(
+    'maven-deps:change-pom',
+    async (): Promise<MavenDependencyAnalysisReport> => {
+      const pomXmlPath = await pickPomXml();
+
+      if (!pomXmlPath) {
+        throw new Error('File selection was canceled.');
+      }
+
+      const updated = await analyzePomAtPath(pomXmlPath);
+      pendingMavenDependencyReport = updated;
+      return updated;
+    },
+  );
+
+  ipcMain.handle(
+    'maven-deps:open-artifact',
+    async (_event, groupId: string, artifactId: string): Promise<void> => {
+      if (
+        typeof groupId !== 'string' ||
+        typeof artifactId !== 'string' ||
+        !MAVEN_COORDINATE_PATTERN.test(groupId.trim()) ||
+        !MAVEN_COORDINATE_PATTERN.test(artifactId.trim())
+      ) {
+        throw new Error('Invalid Maven coordinates.');
+      }
+
+      const url = mavenArtifactPageUrl(groupId.trim(), artifactId.trim());
+
+      if (!url.startsWith('https://central.sonatype.com/artifact/')) {
+        throw new Error('Untrusted artifact URL.');
+      }
+
+      await shell.openExternal(url);
+    },
+  );
+
+  ipcMain.handle(
+    'maven-deps:export-report',
+    async (
+      _event,
+      report: MavenDependencyAnalysisReport,
+    ): Promise<{ filePath: string }> => {
+      if (!report || typeof report.pomXmlPath !== 'string' || !report.pomXmlPath.trim()) {
+        throw new Error('Invalid Maven dependency analysis report.');
+      }
+
+      const filePath = mavenDependencyAnalysisExportPath(report.pomXmlPath);
+      const content = formatMavenDependencyAnalysisMarkdown(report);
 
       await writeFile(filePath, content, 'utf8');
 

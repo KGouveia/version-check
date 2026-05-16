@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { App } from './components/App';
 import { DependencyAnalyzerApp } from './components/DependencyAnalyzerApp';
+import { MavenDependencyAnalyzerApp } from './components/MavenDependencyAnalyzerApp';
 
 const rootElement = document.getElementById('root');
 
@@ -14,6 +15,12 @@ const view = new URLSearchParams(window.location.search).get('view');
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    {view === 'dependencies' ? <DependencyAnalyzerApp /> : <App />}
+    {view === 'dependencies' ? (
+      <DependencyAnalyzerApp />
+    ) : view === 'maven-dependencies' ? (
+      <MavenDependencyAnalyzerApp />
+    ) : (
+      <App />
+    )}
   </React.StrictMode>,
 );

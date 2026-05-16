@@ -58,3 +58,40 @@ export interface DependencyAnalysisReport {
   dependencies: AnalyzedDependency[];
   analyzedAt: string;
 }
+
+export type MavenDependencyScope =
+  | 'compile'
+  | 'test'
+  | 'provided'
+  | 'runtime'
+  | 'system'
+  | string;
+
+export interface MavenDependencyInput {
+  groupId: string;
+  artifactId: string;
+  declaredVersion: string;
+  scope: MavenDependencyScope;
+}
+
+export interface AnalyzedMavenDependency {
+  id: string;
+  groupId: string;
+  artifactId: string;
+  scope: MavenDependencyScope;
+  declaredVersion: string;
+  compareVersion: string | null;
+  latestVersion: string | null;
+  latestSameReleaseLineVersion: string | null;
+  status: VersionStatus;
+  downloadUrl: string;
+  lastCheckedAt: string | null;
+  error: string | null;
+}
+
+export interface MavenDependencyAnalysisReport {
+  pomXmlPath: string;
+  projectLabel: string;
+  dependencies: AnalyzedMavenDependency[];
+  analyzedAt: string;
+}

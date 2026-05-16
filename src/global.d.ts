@@ -1,4 +1,9 @@
-import type { AddSoftwareInput, DependencyAnalysisReport, TrackedSoftware } from './types';
+import type {
+  AddSoftwareInput,
+  DependencyAnalysisReport,
+  MavenDependencyAnalysisReport,
+  TrackedSoftware,
+} from './types';
 
 declare global {
   interface Window {
@@ -15,6 +20,16 @@ declare global {
       openNpmPackage: (packageName: string) => Promise<void>;
       exportDependencyReport: (
         report: DependencyAnalysisReport,
+      ) => Promise<{ filePath: string }>;
+      openMavenDependencyAnalyzer: () => Promise<void>;
+      getMavenDependencyReport: () => Promise<MavenDependencyAnalysisReport>;
+      rescanMavenDependencies: (
+        report: MavenDependencyAnalysisReport,
+      ) => Promise<MavenDependencyAnalysisReport>;
+      changePomXml: () => Promise<MavenDependencyAnalysisReport>;
+      openMavenArtifact: (groupId: string, artifactId: string) => Promise<void>;
+      exportMavenDependencyReport: (
+        report: MavenDependencyAnalysisReport,
       ) => Promise<{ filePath: string }>;
     };
   }

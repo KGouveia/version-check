@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AddSoftwareInput, DependencyAnalysisReport, TrackedSoftware } from './types';
+import type {
+  AddSoftwareInput,
+  DependencyAnalysisReport,
+  MavenDependencyAnalysisReport,
+  TrackedSoftware,
+} from './types';
 
 contextBridge.exposeInMainWorld('versionTracker', {
   listSoftware: (): Promise<TrackedSoftware[]> => ipcRenderer.invoke('software:list'),
@@ -23,4 +28,20 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('deps:open-npm-package', packageName),
   exportDependencyReport: (report: DependencyAnalysisReport): Promise<{ filePath: string }> =>
     ipcRenderer.invoke('deps:export-report', report),
+  openMavenDependencyAnalyzer: (): Promise<void> =>
+    ipcRenderer.invoke('maven-deps:open-analyzer'),
+  getMavenDependencyReport: (): Promise<MavenDependencyAnalysisReport> =>
+    ipcRenderer.invoke('maven-deps:get-report'),
+  rescanMavenDependencies: (
+    report: MavenDependencyAnalysisReport,
+  ): Promise<MavenDependencyAnalysisReport> =>
+    ipcRenderer.invoke('maven-deps:rescan', report),
+  changePomXml: (): Promise<MavenDependencyAnalysisReport> =>
+    ipcRenderer.invoke('maven-deps:change-pom'),
+  openMavenArtifact: (groupId: string, artifactId: string): Promise<void> =>
+    ipcRenderer.invoke('maven-deps:open-artifact', groupId, artifactId),
+  exportMavenDependencyReport: (
+    report: MavenDependencyAnalysisReport,
+  ): Promise<{ filePath: string }> =>
+    ipcRenderer.invoke('maven-deps:export-report', report),
 });
