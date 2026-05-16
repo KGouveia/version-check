@@ -1,18 +1,52 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { checkCodexCliVersion } from './services/codexVersionCheck';
+import {
+  analyzeDependencies,
+  rescanDependencies,
+} from './services/dependencyVersionCheck';
 import { checkJavaVersion } from './services/javaVersionCheck';
+import { parsePackageJsonDependencies } from './services/packageJsonAnalyzer';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { checkNodeVersion } from './services/versionCheck';
-import type { AddSoftwareInput, SoftwareKind, TrackedSoftware } from './types';
+import { npmPackagePageUrl } from './services/npmRegistry';
+import type { AddSoftwareInput, DependencyAnalysisReport, SoftwareKind, TrackedSoftware } from './types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
+
+let pendingDependencyReport: DependencyAnalysisReport | null = null;
+let dependencyWindow: BrowserWindow | null = null;
+
+const NPM_PACKAGE_NAME_PATTERN =
+  /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i;
+
+const webPreferences = {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+  sandbox: false,
+};
+
+const loadRenderer = (browserWindow: BrowserWindow, view?: string) => {
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    if (view) {
+      url.searchParams.set('view', view);
+    }
+    void browserWindow.loadURL(url.toString());
+  } else {
+    void browserWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      view ? { query: { view } } : undefined,
+    );
+  }
+};
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -22,22 +56,61 @@ const createWindow = () => {
     minHeight: 600,
     title: 'Software Version Tracker',
     backgroundColor: '#09090b',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
+    webPreferences,
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
+  loadRenderer(mainWindow);
+};
+
+const createDependencyWindow = () => {
+  if (dependencyWindow && !dependencyWindow.isDestroyed()) {
+    dependencyWindow.focus();
+    dependencyWindow.webContents.reload();
+    return;
   }
 
+  dependencyWindow = new BrowserWindow({
+    width: 1120,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
+    title: 'Dependency versions',
+    backgroundColor: '#09090b',
+    webPreferences,
+  });
+
+  dependencyWindow.on('closed', () => {
+    dependencyWindow = null;
+  });
+
+  loadRenderer(dependencyWindow, 'dependencies');
+};
+
+const pickPackageJson = async (): Promise<string | null> => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'package.json', extensions: ['json'] }],
+    title: 'Select package.json',
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const filePath = result.filePaths[0];
+
+  if (path.basename(filePath) !== 'package.json') {
+    throw new Error('Please select a file named package.json.');
+  }
+
+  return filePath;
+};
+
+const analyzePackageJsonAtPath = async (
+  packageJsonPath: string,
+): Promise<DependencyAnalysisReport> => {
+  const { projectLabel, dependencies } = await parsePackageJsonDependencies(packageJsonPath);
+  return analyzeDependencies(packageJsonPath, projectLabel, dependencies);
 };
 
 const defaultDisplayName: Record<SoftwareKind, string> = {
@@ -159,6 +232,55 @@ const registerIpcHandlers = () => {
       throw new Error('Untrusted download URL.');
     }
 
+    await shell.openExternal(url);
+  });
+
+  ipcMain.handle('deps:open-analyzer', async (): Promise<void> => {
+    const packageJsonPath = await pickPackageJson();
+
+    if (!packageJsonPath) {
+      return;
+    }
+
+    pendingDependencyReport = await analyzePackageJsonAtPath(packageJsonPath);
+    createDependencyWindow();
+  });
+
+  ipcMain.handle('deps:get-report', async (): Promise<DependencyAnalysisReport> => {
+    if (!pendingDependencyReport) {
+      throw new Error('No dependency analysis is available.');
+    }
+
+    return pendingDependencyReport;
+  });
+
+  ipcMain.handle(
+    'deps:rescan',
+    async (_event, report: DependencyAnalysisReport): Promise<DependencyAnalysisReport> => {
+      const updated = await rescanDependencies(report);
+      pendingDependencyReport = updated;
+      return updated;
+    },
+  );
+
+  ipcMain.handle('deps:change-package-json', async (): Promise<DependencyAnalysisReport> => {
+    const packageJsonPath = await pickPackageJson();
+
+    if (!packageJsonPath) {
+      throw new Error('File selection was canceled.');
+    }
+
+    const updated = await analyzePackageJsonAtPath(packageJsonPath);
+    pendingDependencyReport = updated;
+    return updated;
+  });
+
+  ipcMain.handle('deps:open-npm-package', async (_event, packageName: string): Promise<void> => {
+    if (typeof packageName !== 'string' || !NPM_PACKAGE_NAME_PATTERN.test(packageName.trim())) {
+      throw new Error('Invalid npm package name.');
+    }
+
+    const url = npmPackagePageUrl(packageName.trim());
     await shell.openExternal(url);
   });
 };

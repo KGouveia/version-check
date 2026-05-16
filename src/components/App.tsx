@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { FileSearch, RefreshCw } from 'lucide-react';
 import type { SoftwareKind, TrackedSoftware } from '../types';
 import { AddSoftwareForm } from './AddSoftwareForm';
 import { SoftwareTable } from './SoftwareTable';
@@ -16,9 +16,10 @@ export const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isOpeningDeps, setIsOpeningDeps] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isBusy = isAdding || isScanning;
+  const isBusy = isAdding || isScanning || isOpeningDeps;
 
   useEffect(() => {
     window.versionTracker
@@ -80,6 +81,19 @@ export const App = () => {
     }
   };
 
+  const openDependencyAnalyzer = async () => {
+    setIsOpeningDeps(true);
+    setError(null);
+
+    try {
+      await window.versionTracker.openDependencyAnalyzer();
+    } catch {
+      setError('Unable to analyze package.json dependencies.');
+    } finally {
+      setIsOpeningDeps(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6">
@@ -92,19 +106,30 @@ export const App = () => {
               Track Node.js, Python, OpenJDK, and Codex CLI against current public releases.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={rescanAll}
-            disabled={isBusy || isLoading || software.length === 0}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw
-              size={16}
-              className={isScanning ? 'animate-spin' : ''}
-              aria-hidden="true"
-            />
-            {isScanning ? 'Scanning' : 'Manual Rescan'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openDependencyAnalyzer}
+              disabled={isBusy || isLoading}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileSearch size={16} aria-hidden="true" />
+              {isOpeningDeps ? 'Analyzing…' : 'Analyze package.json'}
+            </button>
+            <button
+              type="button"
+              onClick={rescanAll}
+              disabled={isBusy || isLoading || software.length === 0}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-700 px-4 text-sm font-medium text-zinc-200 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                size={16}
+                className={isScanning ? 'animate-spin' : ''}
+                aria-hidden="true"
+              />
+              {isScanning ? 'Scanning' : 'Manual Rescan'}
+            </button>
+          </div>
         </header>
 
         <section className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/20">

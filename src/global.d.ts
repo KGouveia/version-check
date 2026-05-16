@@ -1,4 +1,4 @@
-import type { AddSoftwareInput, TrackedSoftware } from './types';
+import type { AddSoftwareInput, DependencyAnalysisReport, TrackedSoftware } from './types';
 
 declare global {
   interface Window {
@@ -8,6 +8,11 @@ declare global {
       deleteSoftware: (id: string) => Promise<TrackedSoftware[]>;
       rescanAll: () => Promise<TrackedSoftware[]>;
       openDownload: (url: string) => Promise<void>;
+      openDependencyAnalyzer: () => Promise<void>;
+      getDependencyReport: () => Promise<DependencyAnalysisReport>;
+      rescanDependencies: (report: DependencyAnalysisReport) => Promise<DependencyAnalysisReport>;
+      changePackageJson: () => Promise<DependencyAnalysisReport>;
+      openNpmPackage: (packageName: string) => Promise<void>;
     };
   }
 }

@@ -2,17 +2,11 @@ import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
-import { compareVersions, normalizeVersion } from './semver';
 import { resolveBehindTierForKind } from './versionKindTiers';
+import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
 
 const execFileAsync = promisify(execFile);
-const codexNpmRegistryUrl = 'https://registry.npmjs.org/@openai%2Fcodex';
-const codexDownloadUrl = 'https://www.npmjs.com/package/@openai/codex';
-
-interface NpmPackageMetadata {
-  'dist-tags'?: { latest?: string };
-  versions?: Record<string, unknown>;
-}
+const codexPackageName = '@openai/codex';
 
 const codexVersionFromStdout = (stdout: string): string | null => {
   const match = stdout.match(/(\d+\.\d+\.\d+)/);
@@ -76,88 +70,6 @@ const getLocalCodexVersion = async (): Promise<string> => {
   return parsed;
 };
 
-const codexSameReleaseLinePrefix = (current: string): string | null => {
-  const core = normalizeVersion(current).split('-')[0]?.split('+')[0] ?? '';
-  const match = core.match(/^(\d+\.\d+)\./);
-
-  return match?.[1] ? `${match[1]}.` : null;
-};
-
-const isStableSemverKey = (key: string): boolean => {
-  if (!/^\d+\.\d+\.\d+/.test(key)) {
-    return false;
-  }
-
-  const prerelease = normalizeVersion(key).split('-')[1];
-
-  return !prerelease;
-};
-
-const latestOnSameReleaseLineFromNpmVersions = (
-  current: string,
-  versionKeys: string[],
-): string | null => {
-  const prefix = codexSameReleaseLinePrefix(current);
-
-  if (!prefix) {
-    return null;
-  }
-
-  let best: string | null = null;
-
-  for (const key of versionKeys) {
-    if (!isStableSemverKey(key)) {
-      continue;
-    }
-
-    const core = normalizeVersion(key).split('-')[0]?.split('+')[0] ?? '';
-
-    if (!core.startsWith(prefix)) {
-      continue;
-    }
-
-    if (!best || compareVersions(key, best) > 0) {
-      best = key;
-    }
-  }
-
-  return best;
-};
-
-const fetchCodexVersionInfo = async (
-  currentVersion: string | null,
-): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
-  const response = await fetch(codexNpmRegistryUrl);
-
-  if (!response.ok) {
-    throw new Error(`npm registry returned HTTP ${response.status}.`);
-  }
-
-  const data = (await response.json()) as NpmPackageMetadata;
-  const latestRaw = data['dist-tags']?.latest;
-
-  if (typeof latestRaw !== 'string' || !latestRaw.trim()) {
-    throw new Error('npm registry did not include a latest dist-tag.');
-  }
-
-  const latestMatch = latestRaw.match(/^(\d+\.\d+\.\d+)/);
-  const latestVersion = latestMatch?.[1] ?? null;
-
-  if (!latestVersion) {
-    throw new Error('Unable to parse latest @openai/codex version from npm.');
-  }
-
-  const versionKeys = data.versions && typeof data.versions === 'object'
-    ? Object.keys(data.versions)
-    : [];
-
-  const latestSameReleaseLineVersion = currentVersion
-    ? latestOnSameReleaseLineFromNpmVersions(currentVersion, versionKeys)
-    : null;
-
-  return { latestVersion, latestSameReleaseLineVersion };
-};
-
 export const checkCodexCliVersion = async (
   software: TrackedSoftware,
 ): Promise<TrackedSoftware> => {
@@ -173,7 +85,7 @@ export const checkCodexCliVersion = async (
   }
 
   try {
-    const info = await fetchCodexVersionInfo(currentVersion);
+    const info = await fetchNpmVersionInfo(codexPackageName, currentVersion);
     latestVersion = info.latestVersion;
     latestSameReleaseLineVersion = info.latestSameReleaseLineVersion;
   } catch {
@@ -191,7 +103,7 @@ export const checkCodexCliVersion = async (
     latestVersion,
     latestSameReleaseLineVersion,
     status,
-    downloadUrl: codexDownloadUrl,
+    downloadUrl: npmPackagePageUrl(codexPackageName),
     lastCheckedAt: new Date().toISOString(),
     error: errors.length > 0 ? errors.join(' ') : null,
   };

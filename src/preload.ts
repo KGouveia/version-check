@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AddSoftwareInput, TrackedSoftware } from './types';
+import type { AddSoftwareInput, DependencyAnalysisReport, TrackedSoftware } from './types';
 
 contextBridge.exposeInMainWorld('versionTracker', {
   listSoftware: (): Promise<TrackedSoftware[]> => ipcRenderer.invoke('software:list'),
@@ -11,4 +11,14 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('software:rescan-all'),
   openDownload: (url: string): Promise<void> =>
     ipcRenderer.invoke('software:open-download', url),
+  openDependencyAnalyzer: (): Promise<void> =>
+    ipcRenderer.invoke('deps:open-analyzer'),
+  getDependencyReport: (): Promise<DependencyAnalysisReport> =>
+    ipcRenderer.invoke('deps:get-report'),
+  rescanDependencies: (report: DependencyAnalysisReport): Promise<DependencyAnalysisReport> =>
+    ipcRenderer.invoke('deps:rescan', report),
+  changePackageJson: (): Promise<DependencyAnalysisReport> =>
+    ipcRenderer.invoke('deps:change-package-json'),
+  openNpmPackage: (packageName: string): Promise<void> =>
+    ipcRenderer.invoke('deps:open-npm-package', packageName),
 });

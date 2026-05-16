@@ -41,3 +41,21 @@ export const latestVersionCellTone = (
 
   return 'bad';
 };
+
+/** Green when current is same or newer than reference; red when strictly behind. */
+export const latestVersionCellToneSimple = (
+  current: string | null | undefined,
+  reference: string | null | undefined,
+): LatestVersionCellTone => {
+  if (!current?.trim() || !reference?.trim()) {
+    return 'neutral';
+  }
+
+  const cmp = compareVersions(current.trim(), reference.trim());
+
+  if (cmp >= 0) {
+    return 'good';
+  }
+
+  return 'bad';
+};
