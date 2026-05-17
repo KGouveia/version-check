@@ -37,6 +37,7 @@ import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { checkNodeVersion } from './services/versionCheck';
 import { npmPackagePageUrl } from './services/npmRegistry';
+import { SOFTWARE_KIND_LABELS } from './constants/softwareCatalog';
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
@@ -223,14 +224,6 @@ const analyzePomAtPath = async (pomXmlPath: string): Promise<MavenDependencyAnal
   return analyzeMavenDependencies(pomXmlPath, projectLabel, dependencies);
 };
 
-const defaultDisplayName: Record<SoftwareKind, string> = {
-  nodejs: 'Node.js',
-  python: 'Python',
-  java: 'OpenJDK',
-  maven: 'Maven',
-  'codex-cli': 'Codex CLI',
-};
-
 const defaultDownloadUrl: Record<SoftwareKind, string> = {
   nodejs: 'https://nodejs.org/en/download',
   python: 'https://www.python.org/downloads/',
@@ -241,7 +234,7 @@ const defaultDownloadUrl: Record<SoftwareKind, string> = {
 
 const createTrackedSoftware = (kind: SoftwareKind, name: string): TrackedSoftware => ({
   id: crypto.randomUUID(),
-  name: name.trim() || defaultDisplayName[kind],
+  name: name.trim() || SOFTWARE_KIND_LABELS[kind],
   kind,
   currentVersion: null,
   latestVersion: null,
