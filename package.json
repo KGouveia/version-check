@@ -10,8 +10,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . && node -e \"console.log('\\n\\x1b[32m✓\\x1b[0m Lint passed — no issues found.')\"",
+    "typecheck": "tsc --noEmit && node -e \"console.log('\\n\\x1b[32m✓\\x1b[0m Typecheck passed — no errors.')\""
   },
   "keywords": [],
   "author": {
