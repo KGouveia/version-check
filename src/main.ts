@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import crypto from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { checkCodexCliVersion } from './services/codexVersionCheck';
@@ -25,6 +25,14 @@ import {
 import { mavenArtifactPageUrl } from './services/mavenCentral';
 import { parsePomXmlDependencies } from './services/pomXmlAnalyzer';
 import { parsePackageJsonDependencies } from './services/packageJsonAnalyzer';
+import {
+  pipDependencyAnalysisExportPath,
+  formatPipDependencyAnalysisMarkdown,
+} from './services/pipDependencyExport';
+import {
+  analyzePipEnvironment,
+  rescanPipDependencies,
+} from './services/pipDependencyVersionCheck';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { checkNodeVersion } from './services/versionCheck';
@@ -33,6 +41,7 @@ import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   MavenDependencyAnalysisReport,
+  PipDependencyAnalysisReport,
   SoftwareKind,
   TrackedSoftware,
 } from './types';
@@ -46,6 +55,8 @@ let pendingDependencyReport: DependencyAnalysisReport | null = null;
 let dependencyWindow: BrowserWindow | null = null;
 let pendingMavenDependencyReport: MavenDependencyAnalysisReport | null = null;
 let mavenDependencyWindow: BrowserWindow | null = null;
+let pendingPipDependencyReport: PipDependencyAnalysisReport | null = null;
+let pipDependencyWindow: BrowserWindow | null = null;
 
 const NPM_PACKAGE_NAME_PATTERN =
   /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i;
@@ -134,6 +145,30 @@ const createMavenDependencyWindow = () => {
   });
 
   loadRenderer(mavenDependencyWindow, 'maven-dependencies');
+};
+
+const createPipDependencyWindow = () => {
+  if (pipDependencyWindow && !pipDependencyWindow.isDestroyed()) {
+    pipDependencyWindow.focus();
+    pipDependencyWindow.webContents.reload();
+    return;
+  }
+
+  pipDependencyWindow = new BrowserWindow({
+    width: 1120,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
+    title: 'Pip dependency versions',
+    backgroundColor: '#09090b',
+    webPreferences,
+  });
+
+  pipDependencyWindow.on('closed', () => {
+    pipDependencyWindow = null;
+  });
+
+  loadRenderer(pipDependencyWindow, 'pip-dependencies');
 };
 
 const pickPackageJson = async (): Promise<string | null> => {
@@ -472,6 +507,58 @@ const registerIpcHandlers = () => {
 
       const filePath = mavenDependencyAnalysisExportPath(report.pomXmlPath);
       const content = formatMavenDependencyAnalysisMarkdown(report);
+
+      await writeFile(filePath, content, 'utf8');
+
+      return { filePath };
+    },
+  );
+
+  ipcMain.handle('pip-deps:open-analyzer', async (): Promise<void> => {
+    pendingPipDependencyReport = await analyzePipEnvironment();
+    createPipDependencyWindow();
+  });
+
+  ipcMain.handle(
+    'pip-deps:get-report',
+    async (): Promise<PipDependencyAnalysisReport> => {
+      if (!pendingPipDependencyReport) {
+        throw new Error('No pip dependency analysis is available.');
+      }
+
+      return pendingPipDependencyReport;
+    },
+  );
+
+  ipcMain.handle(
+    'pip-deps:rescan',
+    async (
+      _event,
+      report: PipDependencyAnalysisReport,
+    ): Promise<PipDependencyAnalysisReport> => {
+      const updated = await rescanPipDependencies(report);
+      pendingPipDependencyReport = updated;
+      return updated;
+    },
+  );
+
+  ipcMain.handle(
+    'pip-deps:export-report',
+    async (
+      _event,
+      report: PipDependencyAnalysisReport,
+    ): Promise<{ filePath: string }> => {
+      if (
+        !report ||
+        typeof report.pythonPipInvoke !== 'string' ||
+        !report.pythonPipInvoke.trim()
+      ) {
+        throw new Error('Invalid pip dependency analysis report.');
+      }
+
+      const filePath = pipDependencyAnalysisExportPath(app.getPath('appData'));
+      await mkdir(path.dirname(filePath), { recursive: true });
+      const content = formatPipDependencyAnalysisMarkdown(report);
 
       await writeFile(filePath, content, 'utf8');
 

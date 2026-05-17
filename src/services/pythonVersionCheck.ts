@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
 import { compareVersions, normalizeVersion } from './semver';
+import { getLocalPythonVersion } from './pythonExecutable';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
-const execFileAsync = promisify(execFile);
 const pythonReleasesUrl =
   'https://www.python.org/api/v2/downloads/release/?pre_release=false';
 const pythonDownloadUrl = 'https://www.python.org/downloads/';
@@ -14,48 +12,6 @@ interface PythonOrgRelease {
   version: number;
   pre_release: boolean;
 }
-
-const pythonVersionFromStdout = (stdout: string): string | null => {
-  const match = stdout.match(/Python\s+(3\.\d+\.\d+)/i);
-  return match?.[1] ?? null;
-};
-
-const tryExecPythonVersion = async (
-  command: string,
-  args: string[],
-): Promise<string> => {
-  const { stdout } = await execFileAsync(command, args, { shell: false });
-  const parsed = pythonVersionFromStdout(stdout);
-
-  if (!parsed) {
-    throw new Error('Unable to parse Python version output.');
-  }
-
-  return parsed;
-};
-
-const getLocalPythonVersion = async (): Promise<string> => {
-  const attempts: Array<[string, string[]]> = [
-    ['python3', ['-V']],
-    ['python', ['-V']],
-  ];
-
-  if (process.platform === 'win32') {
-    attempts.push(['py', ['-3', '-V']], ['py', ['-V']]);
-  }
-
-  let lastError: unknown;
-
-  for (const [command, args] of attempts) {
-    try {
-      return await tryExecPythonVersion(command, args);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
-};
 
 const cpythonThreeSemverPattern = /^Python 3\.\d+\.\d+$/;
 

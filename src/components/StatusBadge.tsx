@@ -20,11 +20,16 @@ const statusLabels: Record<VersionStatus, string> = {
 
 interface StatusBadgeProps {
   status: VersionStatus;
+  compact?: boolean;
 }
 
-export const StatusBadge = ({ status }: StatusBadgeProps) => (
+export const StatusBadge = ({ status, compact = false }: StatusBadgeProps) => (
   <span
-    className={`inline-flex min-w-24 items-center justify-center rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[status]}`}
+    className={`inline-flex items-center justify-center rounded-full border font-medium ${
+      compact
+        ? 'min-w-0 px-2 py-0.5 text-[11px] leading-tight'
+        : 'min-w-24 px-3 py-1 text-xs'
+    } ${statusStyles[status]}`}
   >
     {statusLabels[status]}
   </span>

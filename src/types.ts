@@ -95,3 +95,30 @@ export interface MavenDependencyAnalysisReport {
   dependencies: AnalyzedMavenDependency[];
   analyzedAt: string;
 }
+
+export interface PipDependencyInput {
+  name: string;
+  installedVersion: string;
+}
+
+export interface AnalyzedPipDependency {
+  id: string;
+  name: string;
+  installedVersion: string;
+  compareVersion: string | null;
+  latestVersion: string | null;
+  latestSameReleaseLineVersion: string | null;
+  status: VersionStatus;
+  downloadUrl: string;
+  lastCheckedAt: string | null;
+  error: string | null;
+}
+
+export interface PipDependencyAnalysisReport {
+  pythonCommand: string;
+  pythonPipInvoke: string;
+  pythonVersion: string | null;
+  projectLabel: string;
+  dependencies: AnalyzedPipDependency[];
+  analyzedAt: string;
+}

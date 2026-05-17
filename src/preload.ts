@@ -3,6 +3,7 @@ import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   MavenDependencyAnalysisReport,
+  PipDependencyAnalysisReport,
   TrackedSoftware,
 } from './types';
 
@@ -44,4 +45,14 @@ contextBridge.exposeInMainWorld('versionTracker', {
     report: MavenDependencyAnalysisReport,
   ): Promise<{ filePath: string }> =>
     ipcRenderer.invoke('maven-deps:export-report', report),
+  openPipDependencyAnalyzer: (): Promise<void> =>
+    ipcRenderer.invoke('pip-deps:open-analyzer'),
+  getPipDependencyReport: (): Promise<PipDependencyAnalysisReport> =>
+    ipcRenderer.invoke('pip-deps:get-report'),
+  rescanPipDependencies: (
+    report: PipDependencyAnalysisReport,
+  ): Promise<PipDependencyAnalysisReport> => ipcRenderer.invoke('pip-deps:rescan', report),
+  exportPipDependencyReport: (
+    report: PipDependencyAnalysisReport,
+  ): Promise<{ filePath: string }> => ipcRenderer.invoke('pip-deps:export-report', report),
 });

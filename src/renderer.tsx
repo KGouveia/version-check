@@ -4,6 +4,7 @@ import './index.css';
 import { App } from './components/App';
 import { DependencyAnalyzerApp } from './components/DependencyAnalyzerApp';
 import { MavenDependencyAnalyzerApp } from './components/MavenDependencyAnalyzerApp';
+import { PipDependencyAnalyzerApp } from './components/PipDependencyAnalyzerApp';
 
 const rootElement = document.getElementById('root');
 
@@ -19,6 +20,8 @@ createRoot(rootElement).render(
       <DependencyAnalyzerApp />
     ) : view === 'maven-dependencies' ? (
       <MavenDependencyAnalyzerApp />
+    ) : view === 'pip-dependencies' ? (
+      <PipDependencyAnalyzerApp />
     ) : (
       <App />
     )}

@@ -2,6 +2,7 @@ import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   MavenDependencyAnalysisReport,
+  PipDependencyAnalysisReport,
   TrackedSoftware,
 } from './types';
 
@@ -30,6 +31,14 @@ declare global {
       openMavenArtifact: (groupId: string, artifactId: string) => Promise<void>;
       exportMavenDependencyReport: (
         report: MavenDependencyAnalysisReport,
+      ) => Promise<{ filePath: string }>;
+      openPipDependencyAnalyzer: () => Promise<void>;
+      getPipDependencyReport: () => Promise<PipDependencyAnalysisReport>;
+      rescanPipDependencies: (
+        report: PipDependencyAnalysisReport,
+      ) => Promise<PipDependencyAnalysisReport>;
+      exportPipDependencyReport: (
+        report: PipDependencyAnalysisReport,
       ) => Promise<{ filePath: string }>;
     };
   }
