@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
+import { proxyFetch } from './proxyNetwork';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const execFileAsync = promisify(execFile);
@@ -52,7 +53,7 @@ const getLocalJavaVersion = async (): Promise<{ display: string; major: number }
 };
 
 const getLatestOpenJdkForMajor = async (major: number): Promise<string> => {
-  const currentResponse = await fetch(`${openJdkCurrentReleaseApi}/${major}`);
+  const currentResponse = await proxyFetch(`${openJdkCurrentReleaseApi}/${major}`);
 
   if (currentResponse.ok) {
     const data = (await currentResponse.json()) as CurrentJavaReleaseResponse;
@@ -66,7 +67,7 @@ const getLatestOpenJdkForMajor = async (major: number): Promise<string> => {
   const versionsUrl = new URL(openJdkVersionsApi);
   versionsUrl.searchParams.set('jdkVersion', String(major));
 
-  const versionsResponse = await fetch(versionsUrl);
+  const versionsResponse = await proxyFetch(versionsUrl);
 
   if (!versionsResponse.ok) {
     throw new Error(`OpenJDK release API returned HTTP ${versionsResponse.status}.`);

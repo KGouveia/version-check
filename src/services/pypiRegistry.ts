@@ -2,6 +2,7 @@ import {
   isStableSemverKey,
   latestOnSameReleaseLineFromNpmVersions,
 } from './npmRegistry';
+import { proxyFetch } from './proxyNetwork';
 import { compareVersions, normalizeVersion } from './semver';
 
 export interface PypiPackageMetadata {
@@ -46,7 +47,7 @@ const highestStableVersion = (versionKeys: string[]): string | null => {
 };
 
 const fetchPypiMetadata = async (packageName: string): Promise<PypiPackageMetadata> => {
-  const response = await fetch(pypiJsonUrl(packageName));
+  const response = await proxyFetch(pypiJsonUrl(packageName));
 
   if (!response.ok) {
     throw new Error(`PyPI returned HTTP ${response.status}.`);

@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
 import { compareVersions, normalizeVersion } from './semver';
+import { proxyFetch } from './proxyNetwork';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const execFileAsync = promisify(execFile);
@@ -27,7 +28,7 @@ const nodeSameReleaseLinePrefix = (current: string): string | null => {
 const fetchNodeVersionInfo = async (
   currentVersion: string | null,
 ): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
-  const response = await fetch(nodeReleaseIndexUrl);
+  const response = await proxyFetch(nodeReleaseIndexUrl);
 
   if (!response.ok) {
     throw new Error(`Node.js release index returned HTTP ${response.status}.`);

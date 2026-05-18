@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import { proxyFetch } from './proxyNetwork';
 import { compareVersions, normalizeVersion } from './semver';
 import { isStableSemverKey } from './npmRegistry';
 
@@ -91,7 +92,7 @@ export const fetchMavenCentralVersionInfo = async (
   compareVersion: string | null,
 ): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
   const url = mavenMetadataUrl(groupId, artifactId);
-  const response = await fetch(url);
+  const response = await proxyFetch(url);
 
   if (!response.ok) {
     throw new Error(`Maven Central returned HTTP ${response.status}.`);

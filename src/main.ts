@@ -35,6 +35,7 @@ import {
 } from './services/pipDependencyVersionCheck';
 import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
+import { initializeSystemProxy } from './services/proxyNetwork';
 import { checkNodeVersion } from './services/versionCheck';
 import { npmPackagePageUrl } from './services/npmRegistry';
 import { SOFTWARE_KIND_LABELS } from './constants/softwareCatalog';
@@ -563,7 +564,8 @@ const registerIpcHandlers = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await initializeSystemProxy();
   registerIpcHandlers();
   createWindow();
 });

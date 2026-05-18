@@ -24,7 +24,7 @@ Desktop **Electron** app that compares **installed** versions of development too
   - `java` — OpenJDK
   - `mvn` — Maven
   - `codex` — Codex CLI
-- **Network access** — Version checks fetch data from public registries and release endpoints (for example nodejs.org, python.org, GitHub releases, and the npm registry).
+- **Network access** — Version checks fetch data from public registries and release endpoints (for example nodejs.org, python.org, GitHub releases, and the npm registry). On Windows, those outbound requests use the **operating system proxy** (corporate proxy / PAC / WPAD), so release lookups work behind a configured system proxy. Local version detection still uses installed CLI tools on `PATH`.
 - **Operating system** — **Windows** (required for the intended experience). The project is developed and tested on Windows only; macOS and Linux are unsupported and untested.
 
 > **PATH note:** If you launch the app from a desktop shortcut, it may inherit a slimmer `PATH` than your terminal. If a tool is reported as not found, start the app from the same shell where `node -v` or `python --version` work, or add the install directories to your system `PATH`.

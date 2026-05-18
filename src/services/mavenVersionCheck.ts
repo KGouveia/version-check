@@ -3,6 +3,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
 import { compareVersions, normalizeVersion } from './semver';
+import { proxyFetch } from './proxyNetwork';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const execFileAsync = promisify(execFile);
@@ -103,7 +104,7 @@ const fetchMavenGitHubReleases = async (): Promise<GitHubRelease[]> => {
     url.searchParams.set('per_page', '100');
     url.searchParams.set('page', String(page));
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       headers: {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'Software-Version-Tracker',

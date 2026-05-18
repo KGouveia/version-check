@@ -1,3 +1,4 @@
+import { proxyFetch } from './proxyNetwork';
 import { compareVersions, normalizeVersion } from './semver';
 
 export interface NpmPackageMetadata {
@@ -79,7 +80,7 @@ export const fetchNpmVersionInfo = async (
   packageName: string,
   compareVersion: string | null,
 ): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
-  const response = await fetch(npmRegistryPackageUrl(packageName));
+  const response = await proxyFetch(npmRegistryPackageUrl(packageName));
 
   if (!response.ok) {
     throw new Error(`npm registry returned HTTP ${response.status}.`);

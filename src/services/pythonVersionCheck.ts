@@ -1,6 +1,7 @@
 import type { TrackedSoftware } from '../types';
 import { compareVersions, normalizeVersion } from './semver';
 import { getLocalPythonVersion } from './pythonExecutable';
+import { proxyFetch } from './proxyNetwork';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const pythonReleasesUrl =
@@ -91,7 +92,7 @@ const latestOnSameReleaseLine = (current: string, candidates: string[]): string 
 const fetchCpython3VersionInfo = async (
   currentVersion: string | null,
 ): Promise<{ latestVersion: string; latestSameReleaseLineVersion: string | null }> => {
-  const response = await fetch(pythonReleasesUrl);
+  const response = await proxyFetch(pythonReleasesUrl);
 
   if (!response.ok) {
     throw new Error(`Python.org releases API returned HTTP ${response.status}.`);
