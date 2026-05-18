@@ -81,4 +81,4 @@ Contributions are not accepted. See [CONTRIBUTING.md](CONTRIBUTING.md) for detai
 
 ## License
 
-MIT © Keith Gouveia
+MIT

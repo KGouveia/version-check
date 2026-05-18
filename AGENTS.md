@@ -4,7 +4,13 @@ This file orients coding agents (and humans) working in this repository. It comp
 
 ## Product
 
-Desktop app (**Electron**) that tracks **local vs latest** versions for installed tooling. The current MVP supports **Node.js** only (`SoftwareKind` is `'nodejs'` in `src/types.ts`). Users add or refresh entries; the UI reads state via a small preload API.
+Desktop app (**Electron**) that compares **installed vs latest** versions for development tools. Users toggle monitors per tool kind, rescan on demand, and open official download pages when outdated.
+
+**Monitored software** (`SoftwareKind` in `src/types.ts`): Node.js (`nodejs`), Python (`python`), OpenJDK (`java`), Maven (`maven`), Codex CLI (`codex-cli`). Labels live in `src/constants/softwareCatalog.ts`.
+
+**Dependency analysis** (separate windows, `?view=` query on the renderer): npm deps from a `package.json`, Maven coords from a `pom.xml`, pip packages from the active Python environment. Reports are held in main-process memory until the analyzer window closes; exports write markdown under app data or beside the project file.
+
+> **Platform:** Developed and tested on **Windows** only. PATH and executable discovery may differ on macOS/Linux.
 
 ## Stack
 
@@ -12,6 +18,7 @@ Desktop app (**Electron**) that tracks **local vs latest** versions for installe
 - **React 19** + **TypeScript** in the renderer
 - **Tailwind CSS** for styling
 - **lucide-react** for icons
+- **fast-xml-parser** for Maven Central / POM parsing (main process)
 
 ## Commands
 
@@ -29,44 +36,88 @@ Prefer running **lint** and **typecheck** after non-trivial edits.
 
 | Area | Role |
 |------|------|
-| `src/main.ts` | Main process: window, **IPC handlers**, storage + version checks |
+| `src/main.ts` | Main process: windows, **IPC handlers**, version checks, dependency analysis orchestration |
 | `src/preload.ts` | `contextBridge` — exposes `window.versionTracker` to the renderer |
-| `src/renderer.tsx` | Renderer entry |
-| `src/components/` | React UI (`App.tsx`, forms, table, badges) |
-| `src/services/storage.ts` | Persist tracked list under the OS **appData** path |
-| `src/services/versionCheck.ts` | Node current (`node -v`) vs latest (nodejs.org `index.json`) |
+| `src/renderer.tsx` | Renderer entry; picks view from `?view=` (`dependencies`, `maven-dependencies`, `pip-dependencies`, or main `App`) |
+| `src/components/` | React UI — `App.tsx`, `SoftwareTable.tsx`, `*DependencyAnalyzerApp.tsx`, tables, `StatusBadge.tsx` |
+| `src/constants/softwareCatalog.ts` | `SoftwareKind` labels and ordering |
+| `src/services/storage.ts` | Persist tracked list under OS **appData** |
+| `src/services/versionCheck.ts` | Node: `node -v` vs nodejs.org `index.json` |
+| `src/services/pythonVersionCheck.ts` | Python via `python` / registry APIs |
+| `src/services/javaVersionCheck.ts` | OpenJDK via `java` / release endpoints |
+| `src/services/mavenVersionCheck.ts` | Maven via `mvn` / GitHub releases |
+| `src/services/codexVersionCheck.ts` | Codex CLI via `codex` / npm registry |
+| `src/services/dependencyVersionCheck.ts` | npm `package.json` analysis |
+| `src/services/mavenDependencyVersionCheck.ts` | Maven `pom.xml` analysis |
+| `src/services/pipDependencyVersionCheck.ts` | pip list / PyPI |
+| `src/services/versionKindTiers.ts`, `semver.ts`, `versionCompareDisplay.ts` | Shared compare / status tier logic |
 | `src/types.ts` | Shared types for main / preload / renderer |
 | `forge.config.ts` | Forge + Vite targets (main, preload, renderer), makers, fuses |
 | `vite.*.config.ts` | Vite configs per process |
 
 ## IPC surface
 
-Preload (`src/preload.ts`) maps to `ipcMain.handle` channels in `src/main.ts`:
+Preload (`src/preload.ts`) maps to `ipcMain.handle` channels in `src/main.ts`. Renderer code should use `window.versionTracker` (see `src/global.d.ts`), not raw `ipcRenderer`.
+
+### Monitored software
 
 | Preload method | IPC channel | Notes |
 |----------------|-------------|--------|
 | `listSoftware` | `software:list` | Returns `TrackedSoftware[]` |
-| `addSoftware` | `software:add` | Only `kind: 'nodejs'`; one Node entry enforced by main |
+| `addSoftware` | `software:add` | Valid `SoftwareKind` only; **one entry per kind** (re-scan if already tracked) |
 | `deleteSoftware` | `software:delete` | Filters by `id` |
-| `rescanAll` | `software:rescan-all` | Re-checks Node rows |
-| `openDownload` | `software:open-download` | **Only** `https://nodejs.org/…` URLs (validated in main) |
+| `rescanAll` | `software:rescan-all` | Re-checks all tracked rows |
+| `openDownload` | `software:open-download` | URL must match a **trusted prefix** in main (see Security) |
 
-Renderer code should use `window.versionTracker` (see `src/global.d.ts`), not raw `ipcRenderer`.
+### npm (`package.json`)
+
+| Preload method | IPC channel | Notes |
+|----------------|-------------|--------|
+| `openDependencyAnalyzer` | `deps:open-analyzer` | File picker → in-memory report → dependency window |
+| `getDependencyReport` | `deps:get-report` | Requires pending report |
+| `rescanDependencies` | `deps:rescan` | Updates pending report |
+| `changePackageJson` | `deps:change-package-json` | New file picker |
+| `openNpmPackage` | `deps:open-npm-package` | Validates package name; opens npmjs.com |
+| `exportDependencyReport` | `deps:export-report` | Markdown beside project |
+
+### Maven (`pom.xml`)
+
+| Preload method | IPC channel | Notes |
+|----------------|-------------|--------|
+| `openMavenDependencyAnalyzer` | `maven-deps:open-analyzer` | File picker → report → window |
+| `getMavenDependencyReport` | `maven-deps:get-report` | |
+| `rescanMavenDependencies` | `maven-deps:rescan` | |
+| `changePomXml` | `maven-deps:change-pom` | |
+| `openMavenArtifact` | `maven-deps:open-artifact` | Validates coordinates; `central.sonatype.com` only |
+| `exportMavenDependencyReport` | `maven-deps:export-report` | |
+
+### pip
+
+| Preload method | IPC channel | Notes |
+|----------------|-------------|--------|
+| `openPipDependencyAnalyzer` | `pip-deps:open-analyzer` | Scans environment → window |
+| `getPipDependencyReport` | `pip-deps:get-report` | |
+| `rescanPipDependencies` | `pip-deps:rescan` | |
+| `exportPipDependencyReport` | `pip-deps:export-report` | Markdown under app data |
 
 ## Persistence
 
 - File: `tracked_software.json`
 - Directory: `{appData}/Software Version Tracker/` (see `storage.ts`)
 - JSON array of `TrackedSoftware`. Invalid / non-array file content is treated as empty with a console error.
+- Dependency analysis reports are **not** persisted to disk except via explicit export handlers.
 
 ## Security / process boundaries
 
-- **Context isolation** on; **Node integration** off in the `BrowserWindow` (`main.ts`).
+- **Context isolation** on; **Node integration** off in `BrowserWindow` (`main.ts` `webPreferences`).
 - **Sandbox** is `false` (as configured); be cautious adding renderer capabilities.
-- Do not broaden `software:open-download` allowlists without an explicit product decision.
+- `software:open-download` allowlist (prefix match): `https://nodejs.org/`, `https://www.python.org/`, `https://openjdk.org/`, `https://jdk.java.net/`, `https://maven.apache.org/`, `https://www.npmjs.com/package/@openai/codex`. Do not broaden without an explicit product decision.
+- `deps:open-npm-package` validates npm package names before opening registry URLs.
+- `maven-deps:open-artifact` builds URLs only under `https://central.sonatype.com/artifact/`.
 
 ## Conventions for changes
 
-- Keep **main-process** IO (disk, `execFile`, `fetch` to registries) in **main** or `src/services/` used from main — not in React components.
-- When extending software kinds, update **`SoftwareKind`**, IPC validation in **`main.ts`**, **`versionCheck`** (or parallel services), and the UI.
+- Keep **main-process** IO (disk, `execFile`, `fetch` to registries, file dialogs) in **main** or `src/services/` used from main — not in React components.
+- When extending **software kinds**, update `SoftwareKind`, `softwareCatalog.ts`, IPC validation in `main.ts`, the matching `*VersionCheck` service, default download URLs in `main.ts`, the `open-download` allowlist, and the UI.
+- When extending **dependency analyzers**, add types in `types.ts`, services under `src/services/`, preload + `global.d.ts` + `main.ts` handlers, a renderer view in `renderer.tsx`, and a `*DependencyAnalyzerApp` component.
 - Match existing **formatting and naming**; avoid drive-by refactors unrelated to the task.
