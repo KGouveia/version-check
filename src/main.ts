@@ -3,7 +3,6 @@ import crypto from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { checkCodexCliVersion } from './services/codexVersionCheck';
 import {
   dependencyAnalysisExportPath,
   formatDependencyAnalysisMarkdown,
@@ -37,11 +36,19 @@ import { checkPythonVersion } from './services/pythonVersionCheck';
 import { readTrackedSoftware, writeTrackedSoftware } from './services/storage';
 import { initializeSystemProxy } from './services/proxyNetwork';
 import { checkNodeVersion } from './services/versionCheck';
+import { scanGlobalNpmModules } from './services/globalNpmVersionCheck';
+import {
+  canUpgradeGlobalNpmModule,
+  resolveGlobalNpmUpgradeSpec,
+} from './services/globalNpmUpgradePolicy';
+import { upgradeGlobalNpmPackage } from './services/npmGlobalUpgrade';
+import { isValidNpmPackageName } from './constants/npmPackageName';
 import { npmPackagePageUrl } from './services/npmRegistry';
 import { SOFTWARE_KIND_LABELS } from './constants/softwareCatalog';
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
+  GlobalNpmModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   SoftwareKind,
@@ -59,9 +66,7 @@ let pendingMavenDependencyReport: MavenDependencyAnalysisReport | null = null;
 let mavenDependencyWindow: BrowserWindow | null = null;
 let pendingPipDependencyReport: PipDependencyAnalysisReport | null = null;
 let pipDependencyWindow: BrowserWindow | null = null;
-
-const NPM_PACKAGE_NAME_PATTERN =
-  /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/i;
+let lastGlobalNpmReport: GlobalNpmModulesReport | null = null;
 
 const MAVEN_COORDINATE_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 
@@ -230,7 +235,6 @@ const defaultDownloadUrl: Record<SoftwareKind, string> = {
   python: 'https://www.python.org/downloads/',
   java: 'https://openjdk.org/',
   maven: 'https://maven.apache.org/download.cgi',
-  'codex-cli': 'https://www.npmjs.com/package/@openai/codex',
 };
 
 const createTrackedSoftware = (kind: SoftwareKind, name: string): TrackedSoftware => ({
@@ -257,8 +261,6 @@ const checkTrackedSoftware = async (
       return checkJavaVersion(software);
     case 'maven':
       return checkMavenVersion(software);
-    case 'codex-cli':
-      return checkCodexCliVersion(software);
     default:
       return Promise.resolve({
         ...software,
@@ -273,8 +275,7 @@ const isSoftwareKind = (value: unknown): value is SoftwareKind =>
   value === 'nodejs' ||
   value === 'python' ||
   value === 'java' ||
-  value === 'maven' ||
-  value === 'codex-cli';
+  value === 'maven';
 
 const registerIpcHandlers = () => {
   ipcMain.handle('software:list', async (): Promise<TrackedSoftware[]> => {
@@ -336,7 +337,6 @@ const registerIpcHandlers = () => {
       'https://openjdk.org/',
       'https://jdk.java.net/',
       'https://maven.apache.org/',
-      'https://www.npmjs.com/package/@openai/codex',
     ];
 
     if (!trustedPrefixes.some((prefix) => url.startsWith(prefix))) {
@@ -387,7 +387,7 @@ const registerIpcHandlers = () => {
   });
 
   ipcMain.handle('deps:open-npm-package', async (_event, packageName: string): Promise<void> => {
-    if (typeof packageName !== 'string' || !NPM_PACKAGE_NAME_PATTERN.test(packageName.trim())) {
+    if (typeof packageName !== 'string' || !isValidNpmPackageName(packageName)) {
       throw new Error('Invalid npm package name.');
     }
 
@@ -557,6 +557,40 @@ const registerIpcHandlers = () => {
       await writeFile(filePath, content, 'utf8');
 
       return { filePath };
+    },
+  );
+
+  ipcMain.handle('global-npm:scan', async (): Promise<GlobalNpmModulesReport> => {
+    const report = await scanGlobalNpmModules();
+    lastGlobalNpmReport = report;
+    return report;
+  });
+
+  ipcMain.handle(
+    'global-npm:upgrade',
+    async (_event, packageName: string): Promise<GlobalNpmModulesReport> => {
+      if (typeof packageName !== 'string' || !isValidNpmPackageName(packageName)) {
+        throw new Error('Invalid npm package name.');
+      }
+
+      const trimmed = packageName.trim();
+      const moduleEntry = lastGlobalNpmReport?.modules.find(
+        (module) => module.name === trimmed,
+      );
+
+      if (!moduleEntry) {
+        throw new Error('Package is not in the current global npm scan.');
+      }
+
+      if (!canUpgradeGlobalNpmModule(moduleEntry)) {
+        throw new Error('No upgrade is available for this package.');
+      }
+
+      await upgradeGlobalNpmPackage(trimmed, resolveGlobalNpmUpgradeSpec(moduleEntry));
+
+      const report = await scanGlobalNpmModules();
+      lastGlobalNpmReport = report;
+      return report;
     },
   );
 };

@@ -6,7 +6,7 @@ This file orients coding agents (and humans) working in this repository. It comp
 
 Desktop app (**Electron**) that compares **installed vs latest** versions for development tools. Users toggle monitors per tool kind, rescan on demand, and open official download pages when outdated.
 
-**Monitored software** (`SoftwareKind` in `src/types.ts`): Node.js (`nodejs`), Python (`python`), OpenJDK (`java`), Maven (`maven`), Codex CLI (`codex-cli`). Labels live in `src/constants/softwareCatalog.ts`.
+**Monitored software** (`SoftwareKind` in `src/types.ts`): Node.js (`nodejs`), Python (`python`), OpenJDK (`java`), Maven (`maven`). Labels live in `src/constants/softwareCatalog.ts`.
 
 **Dependency analysis** (separate windows, `?view=` query on the renderer): npm deps from a `package.json`, Maven coords from a `pom.xml`, pip packages from the active Python environment. Reports are held in main-process memory until the analyzer window closes; exports write markdown under app data or beside the project file.
 
@@ -39,14 +39,14 @@ Prefer running **lint** and **typecheck** after non-trivial edits.
 | `src/main.ts` | Main process: windows, **IPC handlers**, version checks, dependency analysis orchestration |
 | `src/preload.ts` | `contextBridge` — exposes `window.versionTracker` to the renderer |
 | `src/renderer.tsx` | Renderer entry; picks view from `?view=` (`dependencies`, `maven-dependencies`, `pip-dependencies`, or main `App`) |
-| `src/components/` | React UI — `App.tsx`, `SoftwareTable.tsx`, `*DependencyAnalyzerApp.tsx`, tables, `StatusBadge.tsx` |
+| `src/components/` | React UI — `App.tsx`, `SoftwareTable.tsx`, `GlobalNpmModulesSection.tsx`, `*DependencyAnalyzerApp.tsx`, tables, `StatusBadge.tsx` |
 | `src/constants/softwareCatalog.ts` | `SoftwareKind` labels and ordering |
 | `src/services/storage.ts` | Persist tracked list under OS **appData** |
 | `src/services/versionCheck.ts` | Node: `node -v` vs nodejs.org `index.json` |
+| `src/services/npmGlobalList.ts`, `globalNpmVersionCheck.ts`, `npmGlobalUpgrade.ts` | Global npm modules on main window |
 | `src/services/pythonVersionCheck.ts` | Python via `python` / registry APIs |
 | `src/services/javaVersionCheck.ts` | OpenJDK via `java` / release endpoints |
 | `src/services/mavenVersionCheck.ts` | Maven via `mvn` / GitHub releases |
-| `src/services/codexVersionCheck.ts` | Codex CLI via `codex` / npm registry |
 | `src/services/dependencyVersionCheck.ts` | npm `package.json` analysis |
 | `src/services/mavenDependencyVersionCheck.ts` | Maven `pom.xml` analysis |
 | `src/services/pipDependencyVersionCheck.ts` | pip list / PyPI |
@@ -68,6 +68,15 @@ Preload (`src/preload.ts`) maps to `ipcMain.handle` channels in `src/main.ts`. R
 | `deleteSoftware` | `software:delete` | Filters by `id` |
 | `rescanAll` | `software:rescan-all` | Re-checks all tracked rows |
 | `openDownload` | `software:open-download` | URL must match a **trusted prefix** in main (see Security) |
+
+### Global npm (main window)
+
+Shown when Node.js is monitored and `node -v` succeeded. Reports are held in main-process memory (`lastGlobalNpmReport`) for upgrade allowlisting.
+
+| Preload method | IPC channel | Notes |
+|----------------|-------------|--------|
+| `scanGlobalNpmModules` | `global-npm:scan` | `npm list -g --depth=0` + registry version checks |
+| `upgradeGlobalNpmModule` | `global-npm:upgrade` | `npm install -g <name>@latest`; package must be in last scan |
 
 ### npm (`package.json`)
 
@@ -111,7 +120,7 @@ Preload (`src/preload.ts`) maps to `ipcMain.handle` channels in `src/main.ts`. R
 
 - **Context isolation** on; **Node integration** off in `BrowserWindow` (`main.ts` `webPreferences`).
 - **Sandbox** is `false` (as configured); be cautious adding renderer capabilities.
-- `software:open-download` allowlist (prefix match): `https://nodejs.org/`, `https://www.python.org/`, `https://openjdk.org/`, `https://jdk.java.net/`, `https://maven.apache.org/`, `https://www.npmjs.com/package/@openai/codex`. Do not broaden without an explicit product decision.
+- `software:open-download` allowlist (prefix match): `https://nodejs.org/`, `https://www.python.org/`, `https://openjdk.org/`, `https://jdk.java.net/`, `https://maven.apache.org/`. Do not broaden without an explicit product decision.
 - `deps:open-npm-package` validates npm package names before opening registry URLs.
 - `maven-deps:open-artifact` builds URLs only under `https://central.sonatype.com/artifact/`.
 

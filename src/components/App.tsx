@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FileSearch, RefreshCw } from 'lucide-react';
 import { SOFTWARE_KIND_LABELS } from '../constants/softwareCatalog';
-import type { SoftwareKind, TrackedSoftware } from '../types';
+import type { GlobalNpmModulesReport, SoftwareKind, TrackedSoftware } from '../types';
+import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { SoftwareTable } from './SoftwareTable';
 
 const secondaryButtonClass =
@@ -16,13 +17,38 @@ export const App = () => {
   const [isOpeningMavenDeps, setIsOpeningMavenDeps] = useState(false);
   const [isOpeningPipDeps, setIsOpeningPipDeps] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [globalNpmReport, setGlobalNpmReport] = useState<GlobalNpmModulesReport | null>(null);
+  const [isScanningGlobal, setIsScanningGlobal] = useState(false);
+  const [upgradingPackage, setUpgradingPackage] = useState<string | null>(null);
+  const [globalNpmError, setGlobalNpmError] = useState<string | null>(null);
+
+  const nodeEntry = software.find((item) => item.kind === 'nodejs');
+  const showGlobalNpm = Boolean(
+    nodeEntry?.currentVersion && nodeEntry.status !== 'error',
+  );
 
   const isBusy =
     togglingKind !== null ||
     isScanning ||
     isOpeningDeps ||
     isOpeningMavenDeps ||
-    isOpeningPipDeps;
+    isOpeningPipDeps ||
+    isScanningGlobal ||
+    upgradingPackage !== null;
+
+  const scanGlobalNpm = useCallback(async () => {
+    setIsScanningGlobal(true);
+    setGlobalNpmError(null);
+
+    try {
+      const report = await window.versionTracker.scanGlobalNpmModules();
+      setGlobalNpmReport(report);
+    } catch {
+      setGlobalNpmError('Unable to scan global npm packages.');
+    } finally {
+      setIsScanningGlobal(false);
+    }
+  }, []);
 
   useEffect(() => {
     window.versionTracker
@@ -31,6 +57,16 @@ export const App = () => {
       .catch(() => setError('Unable to load tracked software.'))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!showGlobalNpm) {
+      setGlobalNpmReport(null);
+      setGlobalNpmError(null);
+      return;
+    }
+
+    void scanGlobalNpm();
+  }, [showGlobalNpm, scanGlobalNpm]);
 
   const toggleMonitor = async (kind: SoftwareKind, enabled: boolean) => {
     setTogglingKind(kind);
@@ -112,6 +148,30 @@ export const App = () => {
     }
   };
 
+  const openNpmPackage = async (packageName: string) => {
+    setGlobalNpmError(null);
+
+    try {
+      await window.versionTracker.openNpmPackage(packageName);
+    } catch {
+      setGlobalNpmError('Unable to open the npm package page.');
+    }
+  };
+
+  const upgradeGlobalNpmModule = async (packageName: string) => {
+    setUpgradingPackage(packageName);
+    setGlobalNpmError(null);
+
+    try {
+      const report = await window.versionTracker.upgradeGlobalNpmModule(packageName);
+      setGlobalNpmReport(report);
+    } catch {
+      setGlobalNpmError(`Unable to upgrade ${packageName}.`);
+    } finally {
+      setUpgradingPackage(null);
+    }
+  };
+
   const openPipDependencyAnalyzer = async () => {
     setIsOpeningPipDeps(true);
     setError(null);
@@ -134,7 +194,7 @@ export const App = () => {
               Software Version Tracker
             </h1>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-zinc-400">
-              Track Node.js, Python, OpenJDK, Maven, and Codex CLI against current public
+              Track Node.js, Python, OpenJDK, and Maven against current public
               releases.
             </p>
           </div>
@@ -206,6 +266,19 @@ export const App = () => {
             onOpenDownload={openDownload}
           />
         </section>
+
+        {showGlobalNpm && (
+          <GlobalNpmModulesSection
+            report={globalNpmReport}
+            isScanning={isScanningGlobal}
+            isBusy={isBusy}
+            upgradingPackage={upgradingPackage}
+            sectionError={globalNpmError}
+            onRescan={() => void scanGlobalNpm()}
+            onOpenNpm={openNpmPackage}
+            onUpgrade={upgradeGlobalNpmModule}
+          />
+        )}
       </div>
     </main>
   );

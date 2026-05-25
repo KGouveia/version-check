@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
+  GlobalNpmModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   TrackedSoftware,
@@ -55,4 +56,8 @@ contextBridge.exposeInMainWorld('versionTracker', {
   exportPipDependencyReport: (
     report: PipDependencyAnalysisReport,
   ): Promise<{ filePath: string }> => ipcRenderer.invoke('pip-deps:export-report', report),
+  scanGlobalNpmModules: (): Promise<GlobalNpmModulesReport> =>
+    ipcRenderer.invoke('global-npm:scan'),
+  upgradeGlobalNpmModule: (packageName: string): Promise<GlobalNpmModulesReport> =>
+    ipcRenderer.invoke('global-npm:upgrade', packageName),
 });

@@ -1,4 +1,4 @@
-export type SoftwareKind = 'nodejs' | 'python' | 'java' | 'maven' | 'codex-cli';
+export type SoftwareKind = 'nodejs' | 'python' | 'java' | 'maven';
 
 export type VersionStatus =
   | 'unknown'
@@ -16,7 +16,7 @@ export interface TrackedSoftware {
   latestVersion: string | null;
   /**
    * Latest stable release on the same semver major.minor line as local (e.g. max 3.13.z when local is 3.13.3).
-   * Node: from index.json; Python: from python.org API; Java: same-major OpenJDK release as latestVersion; Maven: GitHub apache/maven releases; Codex CLI: from npm package versions.
+   * Node: from index.json; Python: from python.org API; Java: same-major OpenJDK release as latestVersion; Maven: GitHub apache/maven releases.
    */
   latestSameReleaseLineVersion?: string | null;
   status: VersionStatus;
@@ -121,4 +121,23 @@ export interface PipDependencyAnalysisReport {
   projectLabel: string;
   dependencies: AnalyzedPipDependency[];
   analyzedAt: string;
+}
+
+export interface GlobalNpmModule {
+  id: string;
+  name: string;
+  installedVersion: string;
+  compareVersion: string | null;
+  latestVersion: string | null;
+  latestSameReleaseLineVersion: string | null;
+  status: VersionStatus;
+  downloadUrl: string;
+  lastCheckedAt: string | null;
+  error: string | null;
+}
+
+export interface GlobalNpmModulesReport {
+  modules: GlobalNpmModule[];
+  scannedAt: string;
+  listError: string | null;
 }

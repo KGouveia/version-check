@@ -40,7 +40,9 @@ export const readTrackedSoftware = async (): Promise<TrackedSoftware[]> => {
       return [];
     }
 
-    return parsed as TrackedSoftware[];
+    return (parsed as TrackedSoftware[]).filter(
+      (software) => (software.kind as string) !== 'codex-cli',
+    );
   } catch (error) {
     console.error('Unable to read tracked software storage.', error);
     return [];

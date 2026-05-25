@@ -1,14 +1,18 @@
 import crypto from 'node:crypto';
-import type {
-  AnalyzedDependency,
-  DependencyAnalysisReport,
-  PackageDependencyInput,
-} from '../types';
+import type { GlobalNpmModule, GlobalNpmModulesReport } from '../types';
 import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
-import { inferCompareVersion } from './packageJsonAnalyzer';
+import { listGlobalNpmPackages, type GlobalNpmListEntry } from './npmGlobalList';
+import { normalizeVersion } from './semver';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const REGISTRY_CONCURRENCY = 8;
+
+export const inferGlobalNpmCompareVersion = (installedVersion: string): string | null => {
+  const normalized = normalizeVersion(installedVersion);
+  const match = normalized.match(/^(\d+\.\d+\.\d+)/);
+
+  return match?.[1] ?? null;
+};
 
 const mapWithConcurrency = async <T, R>(
   items: T[],
@@ -35,8 +39,8 @@ const mapWithConcurrency = async <T, R>(
   return results;
 };
 
-const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDependency> => {
-  const compareVersion = inferCompareVersion(input.declaredVersion);
+const analyzeOne = async (input: GlobalNpmListEntry): Promise<GlobalNpmModule> => {
+  const compareVersion = inferGlobalNpmCompareVersion(input.installedVersion);
   const checkedAt = new Date().toISOString();
   let latestVersion: string | null = null;
   let latestSameReleaseLineVersion: string | null = null;
@@ -51,7 +55,7 @@ const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDepend
     error = message;
   }
 
-  let status: AnalyzedDependency['status'] = 'unknown';
+  let status: GlobalNpmModule['status'] = 'unknown';
 
   if (error) {
     status = 'error';
@@ -62,8 +66,7 @@ const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDepend
   return {
     id: crypto.randomUUID(),
     name: input.name,
-    section: input.section,
-    declaredVersion: input.declaredVersion,
+    installedVersion: input.installedVersion,
     compareVersion,
     latestVersion,
     latestSameReleaseLineVersion,
@@ -74,29 +77,22 @@ const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDepend
   };
 };
 
-export const analyzeDependencies = async (
-  packageJsonPath: string,
-  projectLabel: string,
-  inputs: PackageDependencyInput[],
-): Promise<DependencyAnalysisReport> => {
-  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, analyzeOne);
+export const scanGlobalNpmModules = async (): Promise<GlobalNpmModulesReport> => {
+  const { packages, listError } = await listGlobalNpmPackages();
+
+  if (listError) {
+    return {
+      modules: [],
+      scannedAt: new Date().toISOString(),
+      listError,
+    };
+  }
+
+  const modules = await mapWithConcurrency(packages, REGISTRY_CONCURRENCY, analyzeOne);
 
   return {
-    packageJsonPath,
-    projectLabel,
-    dependencies,
-    analyzedAt: new Date().toISOString(),
+    modules,
+    scannedAt: new Date().toISOString(),
+    listError: null,
   };
-};
-
-export const rescanDependencies = async (
-  report: DependencyAnalysisReport,
-): Promise<DependencyAnalysisReport> => {
-  const inputs: PackageDependencyInput[] = report.dependencies.map((dep) => ({
-    name: dep.name,
-    declaredVersion: dep.declaredVersion,
-    section: dep.section,
-  }));
-
-  return analyzeDependencies(report.packageJsonPath, report.projectLabel, inputs);
 };

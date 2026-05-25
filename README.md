@@ -2,7 +2,7 @@
 
 Desktop **Electron** app that compares **installed** versions of development tools against **latest public releases**. You can monitor common runtimes and CLIs, rescan on demand, and open official download pages when something is outdated. The app also offers optional dependency audits for Node/npm (`package.json`), Maven (`pom.xml`), and Python (**pip**) projects.
 
-**Monitored software:** Node.js, Python, OpenJDK, Maven, and Codex CLI.
+**Monitored software:** Node.js, Python, OpenJDK, and Maven.
 
 **Dependency analysis:** analyze npm dependencies from a `package.json`, Maven coordinates from a `pom.xml`, or installed packages from a Python environment.
 
@@ -23,7 +23,6 @@ Desktop **Electron** app that compares **installed** versions of development too
   - `python` — Python
   - `java` — OpenJDK
   - `mvn` — Maven
-  - `codex` — Codex CLI
 - **Network access** — Version checks fetch data from public registries and release endpoints (for example nodejs.org, python.org, GitHub releases, and the npm registry). On Windows, those outbound requests use the **operating system proxy** (corporate proxy / PAC / WPAD), so release lookups work behind a configured system proxy. Local version detection still uses installed CLI tools on `PATH`.
 - **Operating system** — **Windows** (required for the intended experience). The project is developed and tested on Windows only; macOS and Linux are unsupported and untested.
 
@@ -51,7 +50,7 @@ npm run start
 
 ### Monitor dev tools
 
-1. In **Monitored software**, toggle the tools you want to track (Node.js, Python, OpenJDK, Maven, Codex CLI).
+1. In **Monitored software**, toggle the tools you want to track (Node.js, Python, OpenJDK, Maven).
 2. Click **Rescan all** to refresh local and latest versions.
 3. When a tool is outdated, use the download action to open its official release page in your browser.
 

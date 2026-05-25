@@ -1,6 +1,7 @@
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
+  GlobalNpmModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   TrackedSoftware,
@@ -40,6 +41,8 @@ declare global {
       exportPipDependencyReport: (
         report: PipDependencyAnalysisReport,
       ) => Promise<{ filePath: string }>;
+      scanGlobalNpmModules: () => Promise<GlobalNpmModulesReport>;
+      upgradeGlobalNpmModule: (packageName: string) => Promise<GlobalNpmModulesReport>;
     };
   }
 }
