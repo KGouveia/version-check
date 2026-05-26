@@ -2,6 +2,7 @@ import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
+  GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   TrackedSoftware,
@@ -43,6 +44,9 @@ declare global {
       ) => Promise<{ filePath: string }>;
       scanGlobalNpmModules: () => Promise<GlobalNpmModulesReport>;
       upgradeGlobalNpmModule: (packageName: string) => Promise<GlobalNpmModulesReport>;
+      scanGlobalPipModules: () => Promise<GlobalPipModulesReport>;
+      upgradeGlobalPipModule: (packageName: string) => Promise<GlobalPipModulesReport>;
+      openPipPackage: (packageName: string) => Promise<void>;
     };
   }
 }

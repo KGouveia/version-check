@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FileSearch, RefreshCw } from 'lucide-react';
 import { SOFTWARE_KIND_LABELS } from '../constants/softwareCatalog';
-import type { GlobalNpmModulesReport, SoftwareKind, TrackedSoftware } from '../types';
+import type {
+  GlobalNpmModulesReport,
+  GlobalPipModulesReport,
+  SoftwareKind,
+  TrackedSoftware,
+} from '../types';
 import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
+import { GlobalPipModulesSection } from './GlobalPipModulesSection';
 import { SoftwareTable } from './SoftwareTable';
 
 const secondaryButtonClass =
@@ -18,13 +24,22 @@ export const App = () => {
   const [isOpeningPipDeps, setIsOpeningPipDeps] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalNpmReport, setGlobalNpmReport] = useState<GlobalNpmModulesReport | null>(null);
-  const [isScanningGlobal, setIsScanningGlobal] = useState(false);
-  const [upgradingPackage, setUpgradingPackage] = useState<string | null>(null);
+  const [isScanningGlobalNpm, setIsScanningGlobalNpm] = useState(false);
+  const [upgradingNpmPackage, setUpgradingNpmPackage] = useState<string | null>(null);
   const [globalNpmError, setGlobalNpmError] = useState<string | null>(null);
+  const [globalPipReport, setGlobalPipReport] = useState<GlobalPipModulesReport | null>(null);
+  const [isScanningGlobalPip, setIsScanningGlobalPip] = useState(false);
+  const [upgradingPipPackage, setUpgradingPipPackage] = useState<string | null>(null);
+  const [globalPipError, setGlobalPipError] = useState<string | null>(null);
 
   const nodeEntry = software.find((item) => item.kind === 'nodejs');
   const showGlobalNpm = Boolean(
     nodeEntry?.currentVersion && nodeEntry.status !== 'error',
+  );
+
+  const pythonEntry = software.find((item) => item.kind === 'python');
+  const showGlobalPip = Boolean(
+    pythonEntry?.currentVersion && pythonEntry.status !== 'error',
   );
 
   const isBusy =
@@ -33,11 +48,13 @@ export const App = () => {
     isOpeningDeps ||
     isOpeningMavenDeps ||
     isOpeningPipDeps ||
-    isScanningGlobal ||
-    upgradingPackage !== null;
+    isScanningGlobalNpm ||
+    isScanningGlobalPip ||
+    upgradingNpmPackage !== null ||
+    upgradingPipPackage !== null;
 
   const scanGlobalNpm = useCallback(async () => {
-    setIsScanningGlobal(true);
+    setIsScanningGlobalNpm(true);
     setGlobalNpmError(null);
 
     try {
@@ -46,7 +63,21 @@ export const App = () => {
     } catch {
       setGlobalNpmError('Unable to scan global npm packages.');
     } finally {
-      setIsScanningGlobal(false);
+      setIsScanningGlobalNpm(false);
+    }
+  }, []);
+
+  const scanGlobalPip = useCallback(async () => {
+    setIsScanningGlobalPip(true);
+    setGlobalPipError(null);
+
+    try {
+      const report = await window.versionTracker.scanGlobalPipModules();
+      setGlobalPipReport(report);
+    } catch {
+      setGlobalPipError('Unable to scan pip packages.');
+    } finally {
+      setIsScanningGlobalPip(false);
     }
   }, []);
 
@@ -62,11 +93,15 @@ export const App = () => {
     if (!showGlobalNpm) {
       setGlobalNpmReport(null);
       setGlobalNpmError(null);
-      return;
     }
+  }, [showGlobalNpm]);
 
-    void scanGlobalNpm();
-  }, [showGlobalNpm, scanGlobalNpm]);
+  useEffect(() => {
+    if (!showGlobalPip) {
+      setGlobalPipReport(null);
+      setGlobalPipError(null);
+    }
+  }, [showGlobalPip]);
 
   const toggleMonitor = async (kind: SoftwareKind, enabled: boolean) => {
     setTogglingKind(kind);
@@ -159,7 +194,7 @@ export const App = () => {
   };
 
   const upgradeGlobalNpmModule = async (packageName: string) => {
-    setUpgradingPackage(packageName);
+    setUpgradingNpmPackage(packageName);
     setGlobalNpmError(null);
 
     try {
@@ -168,7 +203,31 @@ export const App = () => {
     } catch {
       setGlobalNpmError(`Unable to upgrade ${packageName}.`);
     } finally {
-      setUpgradingPackage(null);
+      setUpgradingNpmPackage(null);
+    }
+  };
+
+  const openPipPackage = async (packageName: string) => {
+    setGlobalPipError(null);
+
+    try {
+      await window.versionTracker.openPipPackage(packageName);
+    } catch {
+      setGlobalPipError('Unable to open the PyPI package page.');
+    }
+  };
+
+  const upgradeGlobalPipModule = async (packageName: string) => {
+    setUpgradingPipPackage(packageName);
+    setGlobalPipError(null);
+
+    try {
+      const report = await window.versionTracker.upgradeGlobalPipModule(packageName);
+      setGlobalPipReport(report);
+    } catch {
+      setGlobalPipError(`Unable to upgrade ${packageName}.`);
+    } finally {
+      setUpgradingPipPackage(null);
     }
   };
 
@@ -270,13 +329,26 @@ export const App = () => {
         {showGlobalNpm && (
           <GlobalNpmModulesSection
             report={globalNpmReport}
-            isScanning={isScanningGlobal}
+            isScanning={isScanningGlobalNpm}
             isBusy={isBusy}
-            upgradingPackage={upgradingPackage}
+            upgradingPackage={upgradingNpmPackage}
             sectionError={globalNpmError}
-            onRescan={() => void scanGlobalNpm()}
+            onScan={() => void scanGlobalNpm()}
             onOpenNpm={openNpmPackage}
             onUpgrade={upgradeGlobalNpmModule}
+          />
+        )}
+
+        {showGlobalPip && (
+          <GlobalPipModulesSection
+            report={globalPipReport}
+            isScanning={isScanningGlobalPip}
+            isBusy={isBusy}
+            upgradingPackage={upgradingPipPackage}
+            sectionError={globalPipError}
+            onScan={() => void scanGlobalPip()}
+            onOpenPip={openPipPackage}
+            onUpgrade={upgradeGlobalPipModule}
           />
         )}
       </div>

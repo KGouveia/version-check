@@ -42,14 +42,23 @@ import {
   canUpgradeGlobalNpmModule,
   resolveGlobalNpmUpgradeSpec,
 } from './services/globalNpmUpgradePolicy';
+import { scanGlobalPipModules } from './services/globalPipVersionCheck';
+import {
+  canUpgradeGlobalPipModule,
+  resolveGlobalPipUpgradeSpec,
+} from './services/globalPipUpgradePolicy';
 import { upgradeGlobalNpmPackage } from './services/npmGlobalUpgrade';
+import { upgradeGlobalPipPackage } from './services/pipGlobalUpgrade';
 import { isValidNpmPackageName } from './constants/npmPackageName';
+import { isValidPypiPackageName } from './constants/pypiPackageName';
 import { npmPackagePageUrl } from './services/npmRegistry';
+import { pypiPackagePageUrl } from './services/pypiRegistry';
 import { SOFTWARE_KIND_LABELS } from './constants/softwareCatalog';
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
+  GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   SoftwareKind,
@@ -68,6 +77,9 @@ let mavenDependencyWindow: BrowserWindow | null = null;
 let pendingPipDependencyReport: PipDependencyAnalysisReport | null = null;
 let pipDependencyWindow: BrowserWindow | null = null;
 let lastGlobalNpmReport: GlobalNpmModulesReport | null = null;
+let lastGlobalPipReport: GlobalPipModulesReport | null = null;
+
+const PYPI_PROJECT_URL_PREFIX = 'https://pypi.org/project/';
 
 const MAVEN_COORDINATE_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 
@@ -597,6 +609,57 @@ const registerIpcHandlers = () => {
       const report = await scanGlobalNpmModules();
       lastGlobalNpmReport = report;
       return report;
+    },
+  );
+
+  ipcMain.handle('global-pip:scan', async (): Promise<GlobalPipModulesReport> => {
+    const report = await scanGlobalPipModules();
+    lastGlobalPipReport = report;
+    return report;
+  });
+
+  ipcMain.handle(
+    'global-pip:upgrade',
+    async (_event, packageName: string): Promise<GlobalPipModulesReport> => {
+      if (typeof packageName !== 'string' || !isValidPypiPackageName(packageName)) {
+        throw new Error('Invalid PyPI package name.');
+      }
+
+      const trimmed = packageName.trim();
+      const moduleEntry = lastGlobalPipReport?.modules.find(
+        (module) => module.name === trimmed,
+      );
+
+      if (!moduleEntry) {
+        throw new Error('Package is not in the current pip environment scan.');
+      }
+
+      if (!canUpgradeGlobalPipModule(moduleEntry)) {
+        throw new Error('No upgrade is available for this package.');
+      }
+
+      await upgradeGlobalPipPackage(trimmed, resolveGlobalPipUpgradeSpec(moduleEntry));
+
+      const report = await scanGlobalPipModules();
+      lastGlobalPipReport = report;
+      return report;
+    },
+  );
+
+  ipcMain.handle(
+    'global-pip:open-package',
+    async (_event, packageName: string): Promise<void> => {
+      if (typeof packageName !== 'string' || !isValidPypiPackageName(packageName)) {
+        throw new Error('Invalid PyPI package name.');
+      }
+
+      const url = pypiPackagePageUrl(packageName.trim());
+
+      if (!url.startsWith(PYPI_PROJECT_URL_PREFIX)) {
+        throw new Error('Refusing to open untrusted PyPI URL.');
+      }
+
+      await shell.openExternal(url);
     },
   );
 };

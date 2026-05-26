@@ -141,3 +141,14 @@ export interface GlobalNpmModulesReport {
   scannedAt: string;
   listError: string | null;
 }
+
+/** Same shape as analyzed pip rows; used for the main-window environment scan. */
+export type GlobalPipModule = AnalyzedPipDependency;
+
+export interface GlobalPipModulesReport {
+  modules: GlobalPipModule[];
+  scannedAt: string;
+  listError: string | null;
+  pythonPipInvoke: string;
+  pythonVersion: string | null;
+}

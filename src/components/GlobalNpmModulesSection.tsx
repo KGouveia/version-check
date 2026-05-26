@@ -11,7 +11,7 @@ interface GlobalNpmModulesSectionProps {
   isBusy: boolean;
   upgradingPackage: string | null;
   sectionError: string | null;
-  onRescan: () => void;
+  onScan: () => void;
   onOpenNpm: (packageName: string) => Promise<void>;
   onUpgrade: (packageName: string) => Promise<void>;
 }
@@ -22,26 +22,29 @@ export const GlobalNpmModulesSection = ({
   isBusy,
   upgradingPackage,
   sectionError,
-  onRescan,
+  onScan,
   onOpenNpm,
   onUpgrade,
-}: GlobalNpmModulesSectionProps) => (
+}: GlobalNpmModulesSectionProps) => {
+  const scanLabel = report ? 'Rescan' : 'Scan';
+
+  return (
   <section className="mt-6 overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-xl shadow-black/30">
     <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
       <h2 className="text-sm font-medium text-zinc-300">Global npm modules</h2>
       <button
         type="button"
-        onClick={onRescan}
+        onClick={onScan}
         disabled={isBusy || isScanning}
         className={secondaryButtonClass}
-        title="Re-list global npm packages and check registry versions"
+        title="List global npm packages and check registry versions"
       >
         <RefreshCw
           size={16}
           className={`shrink-0 ${isScanning ? 'animate-spin' : ''}`}
           aria-hidden="true"
         />
-        {isScanning ? 'Scanning…' : 'Rescan'}
+        {isScanning ? 'Scanning…' : scanLabel}
       </button>
     </div>
 
@@ -61,6 +64,10 @@ export const GlobalNpmModulesSection = ({
       <div className="px-6 py-12 text-center text-sm text-zinc-400">
         Scanning global npm packages…
       </div>
+    ) : !report && !isScanning ? (
+      <div className="px-6 py-12 text-center text-sm text-zinc-400">
+        Click Scan to list global npm packages and check registry versions.
+      </div>
     ) : (
       <GlobalNpmModulesTable
         modules={report?.modules ?? []}
@@ -71,4 +78,5 @@ export const GlobalNpmModulesSection = ({
       />
     )}
   </section>
-);
+  );
+};

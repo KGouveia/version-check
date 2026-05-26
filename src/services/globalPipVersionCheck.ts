@@ -1,0 +1,35 @@
+import type { GlobalPipModulesReport } from '../types';
+import { analyzePipDependencies } from './pipDependencyVersionCheck';
+import { listPipPackages } from './pipList';
+
+export const scanGlobalPipModules = async (): Promise<GlobalPipModulesReport> => {
+  try {
+    const env = await listPipPackages();
+    const report = await analyzePipDependencies(
+      env.pythonCommand,
+      env.pythonPipInvoke,
+      env.pythonVersion,
+      env.projectLabel,
+      env.dependencies,
+    );
+
+    return {
+      modules: report.dependencies,
+      scannedAt: new Date().toISOString(),
+      listError: null,
+      pythonPipInvoke: report.pythonPipInvoke,
+      pythonVersion: report.pythonVersion,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Unable to list pip packages in this environment.';
+
+    return {
+      modules: [],
+      scannedAt: new Date().toISOString(),
+      listError: message,
+      pythonPipInvoke: '',
+      pythonVersion: null,
+    };
+  }
+};

@@ -39,11 +39,12 @@ Prefer running **lint** and **typecheck** after non-trivial edits.
 | `src/main.ts` | Main process: windows, **IPC handlers**, version checks, dependency analysis orchestration |
 | `src/preload.ts` | `contextBridge` — exposes `window.versionTracker` to the renderer |
 | `src/renderer.tsx` | Renderer entry; picks view from `?view=` (`dependencies`, `maven-dependencies`, `pip-dependencies`, or main `App`) |
-| `src/components/` | React UI — `App.tsx`, `SoftwareTable.tsx`, `GlobalNpmModulesSection.tsx`, `*DependencyAnalyzerApp.tsx`, tables, `StatusBadge.tsx` |
+| `src/components/` | React UI — `App.tsx`, `SoftwareTable.tsx`, `GlobalNpmModulesSection.tsx`, `GlobalPipModulesSection.tsx`, `*DependencyAnalyzerApp.tsx`, tables, `StatusBadge.tsx` |
 | `src/constants/softwareCatalog.ts` | `SoftwareKind` labels and ordering |
 | `src/services/storage.ts` | Persist tracked list under OS **appData** |
 | `src/services/versionCheck.ts` | Node: `node -v` vs nodejs.org `index.json` |
 | `src/services/npmGlobalList.ts`, `globalNpmVersionCheck.ts`, `npmGlobalUpgrade.ts` | Global npm modules on main window |
+| `src/services/globalPipVersionCheck.ts`, `globalPipUpgradePolicy.ts`, `pipGlobalUpgrade.ts` | Pip packages in monitored Python environment on main window |
 | `src/services/pythonVersionCheck.ts` | Python via `python` / registry APIs |
 | `src/services/javaVersionCheck.ts` | OpenJDK via `java` / release endpoints |
 | `src/services/mavenVersionCheck.ts` | Maven via `mvn` / GitHub releases |
@@ -73,12 +74,22 @@ Preload (`src/preload.ts`) maps to `ipcMain.handle` channels in `src/main.ts`. R
 
 ### Global npm (main window)
 
-Shown when Node.js is monitored and `node -v` succeeded. Reports are held in main-process memory (`lastGlobalNpmReport`) for upgrade allowlisting.
+Shown when Node.js is monitored and `node -v` succeeded. **Does not scan until the user clicks Scan** (then Rescan). Reports are held in main-process memory (`lastGlobalNpmReport`) for upgrade allowlisting.
 
 | Preload method | IPC channel | Notes |
 |----------------|-------------|--------|
 | `scanGlobalNpmModules` | `global-npm:scan` | `npm list -g --depth=0` + registry version checks |
 | `upgradeGlobalNpmModule` | `global-npm:upgrade` | `npm install -g <name>@latest`; package must be in last scan |
+
+### Global pip (main window)
+
+Shown when Python is monitored and version check succeeded. **Does not scan until the user clicks Scan** (then Rescan). Lists packages from `pip list` on the resolved default Python (same environment as the pip analyzer). Reports are held in main-process memory (`lastGlobalPipReport`) for upgrade allowlisting.
+
+| Preload method | IPC channel | Notes |
+|----------------|-------------|--------|
+| `scanGlobalPipModules` | `global-pip:scan` | `pip list` + PyPI version checks |
+| `upgradeGlobalPipModule` | `global-pip:upgrade` | `pip install --upgrade <name>==<version>`; package must be in last scan |
+| `openPipPackage` | `global-pip:open-package` | Validates package name; opens `https://pypi.org/project/` only |
 
 ### npm (`package.json`)
 

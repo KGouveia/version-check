@@ -3,6 +3,7 @@ import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
+  GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   TrackedSoftware,
@@ -60,4 +61,10 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('global-npm:scan'),
   upgradeGlobalNpmModule: (packageName: string): Promise<GlobalNpmModulesReport> =>
     ipcRenderer.invoke('global-npm:upgrade', packageName),
+  scanGlobalPipModules: (): Promise<GlobalPipModulesReport> =>
+    ipcRenderer.invoke('global-pip:scan'),
+  upgradeGlobalPipModule: (packageName: string): Promise<GlobalPipModulesReport> =>
+    ipcRenderer.invoke('global-pip:upgrade', packageName),
+  openPipPackage: (packageName: string): Promise<void> =>
+    ipcRenderer.invoke('global-pip:open-package', packageName),
 });
