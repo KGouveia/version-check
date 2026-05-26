@@ -1,4 +1,5 @@
 import type { SoftwareKind } from '../types';
+import { compareGitForWindowsVersions } from './gitVersionNormalize';
 import { normalizeJavaForCompare } from './javaVersionNormalize';
 import { compareVersions } from './semver';
 
@@ -14,6 +15,10 @@ export const compareLocalToReference = (
 ): number | null => {
   if (!current?.trim() || !reference?.trim()) {
     return null;
+  }
+
+  if (kind === 'git') {
+    return compareGitForWindowsVersions(current.trim(), reference.trim());
   }
 
   const c = kind === 'java' ? normalizeJavaForCompare(current.trim()) : current.trim();

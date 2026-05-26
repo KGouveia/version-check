@@ -5,6 +5,7 @@ export const SOFTWARE_KIND_LABELS: Record<SoftwareKind, string> = {
   python: 'Python',
   java: 'OpenJDK',
   maven: 'Maven',
+  git: 'Git',
 };
 
 export const ALL_SOFTWARE_KINDS: readonly SoftwareKind[] = [
@@ -12,6 +13,7 @@ export const ALL_SOFTWARE_KINDS: readonly SoftwareKind[] = [
   'python',
   'java',
   'maven',
+  'git',
 ] as const;
 
 export const compareSoftwareByLabel = (a: SoftwareKind, b: SoftwareKind): number =>

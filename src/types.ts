@@ -1,4 +1,4 @@
-export type SoftwareKind = 'nodejs' | 'python' | 'java' | 'maven';
+export type SoftwareKind = 'nodejs' | 'python' | 'java' | 'maven' | 'git';
 
 export type VersionStatus =
   | 'unknown'
@@ -16,7 +16,7 @@ export interface TrackedSoftware {
   latestVersion: string | null;
   /**
    * Latest stable release on the same semver major.minor line as local (e.g. max 3.13.z when local is 3.13.3).
-   * Node: from index.json; Python: from python.org API; Java: same-major OpenJDK release as latestVersion; Maven: GitHub apache/maven releases.
+   * Node: from index.json; Python: from python.org API; Java: same-major OpenJDK release as latestVersion; Maven: GitHub apache/maven releases; Git: Git for Windows GitHub releases.
    */
   latestSameReleaseLineVersion?: string | null;
   status: VersionStatus;

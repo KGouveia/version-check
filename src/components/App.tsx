@@ -194,8 +194,8 @@ export const App = () => {
               Software Version Tracker
             </h1>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-zinc-400">
-              Track Node.js, Python, OpenJDK, and Maven against current public
-              releases.
+              Track Node.js, Python, OpenJDK, Maven, and Git against current
+              public releases.
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">

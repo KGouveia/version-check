@@ -11,6 +11,7 @@ import {
   analyzeDependencies,
   rescanDependencies,
 } from './services/dependencyVersionCheck';
+import { checkGitVersion } from './services/gitVersionCheck';
 import { checkJavaVersion } from './services/javaVersionCheck';
 import { checkMavenVersion } from './services/mavenVersionCheck';
 import {
@@ -235,6 +236,7 @@ const defaultDownloadUrl: Record<SoftwareKind, string> = {
   python: 'https://www.python.org/downloads/',
   java: 'https://openjdk.org/',
   maven: 'https://maven.apache.org/download.cgi',
+  git: 'https://git-scm.com/download/win',
 };
 
 const createTrackedSoftware = (kind: SoftwareKind, name: string): TrackedSoftware => ({
@@ -261,6 +263,8 @@ const checkTrackedSoftware = async (
       return checkJavaVersion(software);
     case 'maven':
       return checkMavenVersion(software);
+    case 'git':
+      return checkGitVersion(software);
     default:
       return Promise.resolve({
         ...software,
@@ -275,7 +279,8 @@ const isSoftwareKind = (value: unknown): value is SoftwareKind =>
   value === 'nodejs' ||
   value === 'python' ||
   value === 'java' ||
-  value === 'maven';
+  value === 'maven' ||
+  value === 'git';
 
 const registerIpcHandlers = () => {
   ipcMain.handle('software:list', async (): Promise<TrackedSoftware[]> => {
@@ -337,6 +342,7 @@ const registerIpcHandlers = () => {
       'https://openjdk.org/',
       'https://jdk.java.net/',
       'https://maven.apache.org/',
+      'https://git-scm.com/',
     ];
 
     if (!trustedPrefixes.some((prefix) => url.startsWith(prefix))) {

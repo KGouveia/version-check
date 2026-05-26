@@ -6,7 +6,7 @@ This file orients coding agents (and humans) working in this repository. It comp
 
 Desktop app (**Electron**) that compares **installed vs latest** versions for development tools. Users toggle monitors per tool kind, rescan on demand, and open official download pages when outdated.
 
-**Monitored software** (`SoftwareKind` in `src/types.ts`): Node.js (`nodejs`), Python (`python`), OpenJDK (`java`), Maven (`maven`). Labels live in `src/constants/softwareCatalog.ts`.
+**Monitored software** (`SoftwareKind` in `src/types.ts`): Node.js (`nodejs`), Python (`python`), OpenJDK (`java`), Maven (`maven`), Git (`git`). Labels live in `src/constants/softwareCatalog.ts`.
 
 **Dependency analysis** (separate windows, `?view=` query on the renderer): npm deps from a `package.json`, Maven coords from a `pom.xml`, pip packages from the active Python environment. Reports are held in main-process memory until the analyzer window closes; exports write markdown under app data or beside the project file.
 
@@ -47,6 +47,8 @@ Prefer running **lint** and **typecheck** after non-trivial edits.
 | `src/services/pythonVersionCheck.ts` | Python via `python` / registry APIs |
 | `src/services/javaVersionCheck.ts` | OpenJDK via `java` / release endpoints |
 | `src/services/mavenVersionCheck.ts` | Maven via `mvn` / GitHub releases |
+| `src/services/gitVersionCheck.ts` | Git via `git --version` / Git for Windows GitHub releases |
+| `src/services/gitVersionNormalize.ts` | Git for Windows version parse and compare (`.windows.N` suffix) |
 | `src/services/dependencyVersionCheck.ts` | npm `package.json` analysis |
 | `src/services/mavenDependencyVersionCheck.ts` | Maven `pom.xml` analysis |
 | `src/services/pipDependencyVersionCheck.ts` | pip list / PyPI |
@@ -120,7 +122,7 @@ Shown when Node.js is monitored and `node -v` succeeded. Reports are held in mai
 
 - **Context isolation** on; **Node integration** off in `BrowserWindow` (`main.ts` `webPreferences`).
 - **Sandbox** is `false` (as configured); be cautious adding renderer capabilities.
-- `software:open-download` allowlist (prefix match): `https://nodejs.org/`, `https://www.python.org/`, `https://openjdk.org/`, `https://jdk.java.net/`, `https://maven.apache.org/`. Do not broaden without an explicit product decision.
+- `software:open-download` allowlist (prefix match): `https://nodejs.org/`, `https://www.python.org/`, `https://openjdk.org/`, `https://jdk.java.net/`, `https://maven.apache.org/`, `https://git-scm.com/`. Do not broaden without an explicit product decision.
 - `deps:open-npm-package` validates npm package names before opening registry URLs.
 - `maven-deps:open-artifact` builds URLs only under `https://central.sonatype.com/artifact/`.
 
