@@ -7,6 +7,7 @@ import type {
   SoftwareKind,
   TrackedSoftware,
 } from '../types';
+import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { GlobalPipModulesSection } from './GlobalPipModulesSection';
 import { SoftwareTable } from './SoftwareTable';
@@ -291,9 +292,9 @@ export const App = () => {
           </div>
         </header>
 
-        <section className="overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-xl shadow-black/30">
-          <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
-            <h2 className="text-sm font-medium text-zinc-300">Monitored software</h2>
+        <CollapsibleSection
+          title="Monitored software"
+          actions={
             <button
               type="button"
               onClick={rescanAll}
@@ -308,14 +309,15 @@ export const App = () => {
               />
               {isScanning ? 'Scanning…' : 'Rescan all'}
             </button>
-          </div>
-
-          {error && (
-            <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
-              {error}
-            </div>
-          )}
-
+          }
+          errorBanner={
+            error ? (
+              <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
+                {error}
+              </div>
+            ) : undefined
+          }
+        >
           <SoftwareTable
             software={software}
             isLoading={isLoading}
@@ -324,7 +326,7 @@ export const App = () => {
             onToggleMonitor={toggleMonitor}
             onOpenDownload={openDownload}
           />
-        </section>
+        </CollapsibleSection>
 
         {showGlobalNpm && (
           <GlobalNpmModulesSection
