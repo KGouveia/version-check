@@ -4,8 +4,10 @@ import type {
   PipDependencyAnalysisReport,
   PipDependencyInput,
 } from '../types';
+import { fetchPipIndexVersionInfo } from './pipIndexVersions';
 import { listPipPackages } from './pipList';
-import { fetchPypiVersionInfo, inferPipCompareVersion, pypiPackagePageUrl } from './pypiRegistry';
+import { inferPipCompareVersion, pypiPackagePageUrl } from './pypiRegistry';
+import { resolvePythonExecutable, type ResolvedPythonExecutable } from './pythonExecutable';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const REGISTRY_CONCURRENCY = 8;
@@ -35,7 +37,10 @@ const mapWithConcurrency = async <T, R>(
   return results;
 };
 
-const analyzeOne = async (input: PipDependencyInput): Promise<AnalyzedPipDependency> => {
+const analyzeOne = async (
+  input: PipDependencyInput,
+  executable: ResolvedPythonExecutable,
+): Promise<AnalyzedPipDependency> => {
   const compareVersion = inferPipCompareVersion(input.installedVersion);
   const checkedAt = new Date().toISOString();
   let latestVersion: string | null = null;
@@ -43,11 +48,11 @@ const analyzeOne = async (input: PipDependencyInput): Promise<AnalyzedPipDepende
   let error: string | null = null;
 
   try {
-    const info = await fetchPypiVersionInfo(input.name, compareVersion);
+    const info = await fetchPipIndexVersionInfo(input.name, compareVersion, executable);
     latestVersion = info.latestVersion;
     latestSameReleaseLineVersion = info.latestSameReleaseLineVersion;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Registry lookup failed.';
+    const message = err instanceof Error ? err.message : 'Index lookup failed.';
     error = message;
   }
 
@@ -79,8 +84,12 @@ export const analyzePipDependencies = async (
   pythonVersion: string | null,
   projectLabel: string,
   inputs: PipDependencyInput[],
+  executable?: ResolvedPythonExecutable,
 ): Promise<PipDependencyAnalysisReport> => {
-  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, analyzeOne);
+  const resolved = executable ?? (await resolvePythonExecutable());
+  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, (input) =>
+    analyzeOne(input, resolved),
+  );
 
   return {
     pythonCommand,
@@ -100,6 +109,7 @@ export const analyzePipEnvironment = async (): Promise<PipDependencyAnalysisRepo
     env.pythonVersion,
     env.projectLabel,
     env.dependencies,
+    env.executable,
   );
 };
 

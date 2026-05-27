@@ -10,8 +10,8 @@ export const pythonVersionFromStdout = (stdout: string): string | null => {
 
 export const getPythonCommandAttempts = (): Array<[string, string[]]> => {
   const attempts: Array<[string, string[]]> = [
-    ['python3', ['-V']],
     ['python', ['-V']],
+    ['python3', ['-V']],
   ];
 
   if (process.platform === 'win32') {

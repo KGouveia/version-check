@@ -5,7 +5,9 @@ import {
   formatPythonCommandLabel,
   formatPythonPipInvoke,
   formatPythonProjectLabel,
+  pipRunnerArgs,
   resolvePythonExecutable,
+  type ResolvedPythonExecutable,
 } from './pythonExecutable';
 
 const execFileAsync = promisify(execFile);
@@ -62,15 +64,17 @@ export interface PipEnvironmentInfo {
   pythonVersion: string | null;
   projectLabel: string;
   dependencies: PipDependencyInput[];
+  executable: ResolvedPythonExecutable;
 }
 
 export const listPipPackages = async (): Promise<PipEnvironmentInfo> => {
-  const { command, versionArgs, version } = await resolvePythonExecutable();
+  const executable = await resolvePythonExecutable();
+  const { command, versionArgs, version } = executable;
   const pythonCommand = formatPythonCommandLabel(command, versionArgs);
 
   const { stdout } = await execFileAsync(
     command,
-    ['-m', 'pip', 'list', '--format=json', '--exclude-editable'],
+    [...pipRunnerArgs(versionArgs), '-m', 'pip', 'list', '--format=json', '--exclude-editable'],
     { shell: false },
   );
 
@@ -82,5 +86,6 @@ export const listPipPackages = async (): Promise<PipEnvironmentInfo> => {
     pythonVersion: version,
     projectLabel: formatPythonProjectLabel(command, version),
     dependencies,
+    executable,
   };
 };

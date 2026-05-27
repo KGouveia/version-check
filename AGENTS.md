@@ -52,7 +52,8 @@ Prefer running **lint** and **typecheck** after non-trivial edits.
 | `src/services/gitVersionNormalize.ts` | Git for Windows version parse and compare (`.windows.N` suffix) |
 | `src/services/dependencyVersionCheck.ts` | npm `package.json` analysis |
 | `src/services/mavenDependencyVersionCheck.ts` | Maven `pom.xml` analysis |
-| `src/services/pipDependencyVersionCheck.ts` | pip list / PyPI |
+| `src/services/pipDependencyVersionCheck.ts` | pip list / pip index version checks |
+| `src/services/pipIndexVersions.ts` | `pip index versions` for configured package indexes |
 | `src/services/versionKindTiers.ts`, `semver.ts`, `versionCompareDisplay.ts` | Shared compare / status tier logic |
 | `src/types.ts` | Shared types for main / preload / renderer |
 | `forge.config.ts` | Forge + Vite targets (main, preload, renderer), makers, fuses |
@@ -87,7 +88,7 @@ Shown when Python is monitored and version check succeeded. **Does not scan unti
 
 | Preload method | IPC channel | Notes |
 |----------------|-------------|--------|
-| `scanGlobalPipModules` | `global-pip:scan` | `pip list` + PyPI version checks |
+| `scanGlobalPipModules` | `global-pip:scan` | `pip list` + pip index version checks |
 | `upgradeGlobalPipModule` | `global-pip:upgrade` | `pip install --upgrade <name>==<version>`; package must be in last scan |
 | `openPipPackage` | `global-pip:open-package` | Validates package name; opens `https://pypi.org/project/` only |
 

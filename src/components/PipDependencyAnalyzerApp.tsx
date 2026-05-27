@@ -82,7 +82,7 @@ export const PipDependencyAnalyzerApp = () => {
             {!report && !isLoading && (
               <p className="mt-1 text-sm text-zinc-400">
                 Compare pip-installed packages (excluding editable local projects)
-                against PyPI releases.
+                against configured pip index releases.
               </p>
             )}
           </div>

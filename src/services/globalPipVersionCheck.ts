@@ -11,6 +11,7 @@ export const scanGlobalPipModules = async (): Promise<GlobalPipModulesReport> =>
       env.pythonVersion,
       env.projectLabel,
       env.dependencies,
+      env.executable,
     );
 
     return {

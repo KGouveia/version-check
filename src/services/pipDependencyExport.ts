@@ -43,7 +43,7 @@ const formatStatusTable = (
   }
 
   const header =
-    '| Package | Installed | Resolved | Latest (same minor line) | Latest (PyPI) | PyPI | Error |';
+    '| Package | Installed | Resolved | Latest (same minor line) | Latest (index) | Index | Error |';
   const separator =
     '|---------|-----------|----------|--------------------------|---------------|------|-------|';
 

@@ -142,7 +142,7 @@ export const PipDependencyTable = ({
                 </td>
                 <td
                   className={`truncate px-2 py-2 font-mono text-xs ${toneClass[latestTone]}`}
-                  title="Latest stable release on PyPI."
+                  title="Latest stable release on the configured pip index."
                 >
                   {item.latestVersion ?? '—'}
                 </td>

@@ -57,7 +57,7 @@ export const GlobalPipModulesSection = ({
           onClick={onScan}
           disabled={isBusy || isScanning}
           className={secondaryButtonClass}
-          title="List pip packages in the monitored Python environment and check PyPI versions"
+          title="List pip packages in the monitored Python environment and check index versions"
         >
           <RefreshCw
             size={16}
@@ -75,7 +75,7 @@ export const GlobalPipModulesSection = ({
         </div>
       ) : !report && !isScanning ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
-          Click Scan to list pip packages in this Python environment and check PyPI versions.
+          Click Scan to list pip packages in this Python environment and check index versions.
         </div>
       ) : (
         <GlobalPipModulesTable
