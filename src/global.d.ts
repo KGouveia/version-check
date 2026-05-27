@@ -5,12 +5,14 @@ import type {
   GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
+  ScanProgress,
   TrackedSoftware,
 } from './types';
 
 declare global {
   interface Window {
     versionTracker: {
+      onScanProgress: (callback: (progress: ScanProgress) => void) => () => void;
       listSoftware: () => Promise<TrackedSoftware[]>;
       addSoftware: (input: AddSoftwareInput) => Promise<TrackedSoftware[]>;
       deleteSoftware: (id: string) => Promise<TrackedSoftware[]>;

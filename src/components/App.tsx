@@ -7,15 +7,18 @@ import type {
   SoftwareKind,
   TrackedSoftware,
 } from '../types';
+import { useScanProgress } from '../hooks/useScanProgress';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { GlobalPipModulesSection } from './GlobalPipModulesSection';
+import { ScanProgressBar } from './ScanProgressBar';
 import { SoftwareTable } from './SoftwareTable';
 
 const secondaryButtonClass =
   'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/50 px-3.5 py-2 text-sm font-medium leading-none text-zinc-200 whitespace-nowrap transition hover:border-cyan-500/80 hover:bg-zinc-900 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-60';
 
 export const App = () => {
+  const { progress: scanProgress, runWithProgress } = useScanProgress();
   const [software, setSoftware] = useState<TrackedSoftware[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [togglingKind, setTogglingKind] = useState<SoftwareKind | null>(null);
@@ -59,28 +62,28 @@ export const App = () => {
     setGlobalNpmError(null);
 
     try {
-      const report = await window.versionTracker.scanGlobalNpmModules();
+      const report = await runWithProgress(() => window.versionTracker.scanGlobalNpmModules());
       setGlobalNpmReport(report);
     } catch {
       setGlobalNpmError('Unable to scan global npm packages.');
     } finally {
       setIsScanningGlobalNpm(false);
     }
-  }, []);
+  }, [runWithProgress]);
 
   const scanGlobalPip = useCallback(async () => {
     setIsScanningGlobalPip(true);
     setGlobalPipError(null);
 
     try {
-      const report = await window.versionTracker.scanGlobalPipModules();
+      const report = await runWithProgress(() => window.versionTracker.scanGlobalPipModules());
       setGlobalPipReport(report);
     } catch {
       setGlobalPipError('Unable to scan pip packages.');
     } finally {
       setIsScanningGlobalPip(false);
     }
-  }, []);
+  }, [runWithProgress]);
 
   useEffect(() => {
     window.versionTracker
@@ -163,7 +166,7 @@ export const App = () => {
     setError(null);
 
     try {
-      await window.versionTracker.openDependencyAnalyzer();
+      await runWithProgress(() => window.versionTracker.openDependencyAnalyzer());
     } catch {
       setError('Unable to analyze package.json dependencies.');
     } finally {
@@ -176,7 +179,7 @@ export const App = () => {
     setError(null);
 
     try {
-      await window.versionTracker.openMavenDependencyAnalyzer();
+      await runWithProgress(() => window.versionTracker.openMavenDependencyAnalyzer());
     } catch {
       setError('Unable to analyze pom.xml dependencies.');
     } finally {
@@ -199,7 +202,9 @@ export const App = () => {
     setGlobalNpmError(null);
 
     try {
-      const report = await window.versionTracker.upgradeGlobalNpmModule(packageName);
+      const report = await runWithProgress(() =>
+        window.versionTracker.upgradeGlobalNpmModule(packageName),
+      );
       setGlobalNpmReport(report);
     } catch {
       setGlobalNpmError(`Unable to upgrade ${packageName}.`);
@@ -223,7 +228,9 @@ export const App = () => {
     setGlobalPipError(null);
 
     try {
-      const report = await window.versionTracker.upgradeGlobalPipModule(packageName);
+      const report = await runWithProgress(() =>
+        window.versionTracker.upgradeGlobalPipModule(packageName),
+      );
       setGlobalPipReport(report);
     } catch {
       setGlobalPipError(`Unable to upgrade ${packageName}.`);
@@ -237,13 +244,20 @@ export const App = () => {
     setError(null);
 
     try {
-      await window.versionTracker.openPipDependencyAnalyzer();
+      await runWithProgress(() => window.versionTracker.openPipDependencyAnalyzer());
     } catch {
       setError('Unable to analyze pip packages.');
     } finally {
       setIsOpeningPipDeps(false);
     }
   };
+
+  const isOpeningAnalyzer = isOpeningDeps || isOpeningMavenDeps || isOpeningPipDeps;
+  const globalNpmScanProgress =
+    isScanningGlobalNpm || upgradingNpmPackage !== null ? scanProgress : null;
+  const globalPipScanProgress =
+    isScanningGlobalPip || upgradingPipPackage !== null ? scanProgress : null;
+  const analyzerOpenProgress = isOpeningAnalyzer ? scanProgress : null;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -292,6 +306,10 @@ export const App = () => {
           </div>
         </header>
 
+        {analyzerOpenProgress && (
+          <ScanProgressBar progress={analyzerOpenProgress} className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950" />
+        )}
+
         <CollapsibleSection
           title="Monitored software"
           actions={
@@ -331,7 +349,8 @@ export const App = () => {
         {showGlobalNpm && (
           <GlobalNpmModulesSection
             report={globalNpmReport}
-            isScanning={isScanningGlobalNpm}
+            isScanning={isScanningGlobalNpm || upgradingNpmPackage !== null}
+            scanProgress={globalNpmScanProgress}
             isBusy={isBusy}
             upgradingPackage={upgradingNpmPackage}
             sectionError={globalNpmError}
@@ -344,7 +363,8 @@ export const App = () => {
         {showGlobalPip && (
           <GlobalPipModulesSection
             report={globalPipReport}
-            isScanning={isScanningGlobalPip}
+            isScanning={isScanningGlobalPip || upgradingPipPackage !== null}
+            scanProgress={globalPipScanProgress}
             isBusy={isBusy}
             upgradingPackage={upgradingPipPackage}
             sectionError={globalPipError}

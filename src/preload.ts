@@ -6,10 +6,22 @@ import type {
   GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
+  ScanProgress,
   TrackedSoftware,
 } from './types';
 
+const SCAN_PROGRESS_CHANNEL = 'scan:progress';
+
 contextBridge.exposeInMainWorld('versionTracker', {
+  onScanProgress: (callback: (progress: ScanProgress) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => {
+      callback(progress);
+    };
+    ipcRenderer.on(SCAN_PROGRESS_CHANNEL, listener);
+    return () => {
+      ipcRenderer.removeListener(SCAN_PROGRESS_CHANNEL, listener);
+    };
+  },
   listSoftware: (): Promise<TrackedSoftware[]> => ipcRenderer.invoke('software:list'),
   addSoftware: (input: AddSoftwareInput): Promise<TrackedSoftware[]> =>
     ipcRenderer.invoke('software:add', input),

@@ -5,35 +5,11 @@ import type {
   MavenDependencyInput,
 } from '../types';
 import { fetchMavenCentralVersionInfo, mavenArtifactPageUrl } from './mavenCentral';
+import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { inferMavenCompareVersion } from './pomXmlAnalyzer';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const REGISTRY_CONCURRENCY = 8;
-
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> => {
-  const results: R[] = new Array(items.length);
-  let index = 0;
-
-  const worker = async () => {
-    while (index < items.length) {
-      const currentIndex = index;
-      index += 1;
-      results[currentIndex] = await fn(items[currentIndex]);
-    }
-  };
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
-
-  await Promise.all(workers);
-  return results;
-};
 
 const analyzeOne = async (input: MavenDependencyInput): Promise<AnalyzedMavenDependency> => {
   const compareVersion = inferMavenCompareVersion(input.declaredVersion);
@@ -83,8 +59,14 @@ export const analyzeMavenDependencies = async (
   pomXmlPath: string,
   projectLabel: string,
   inputs: MavenDependencyInput[],
+  onProgress?: ScanProgressCallback,
 ): Promise<MavenDependencyAnalysisReport> => {
-  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, analyzeOne);
+  const dependencies = await mapWithConcurrency(
+    inputs,
+    REGISTRY_CONCURRENCY,
+    analyzeOne,
+    onProgress,
+  );
 
   return {
     pomXmlPath,
@@ -96,6 +78,7 @@ export const analyzeMavenDependencies = async (
 
 export const rescanMavenDependencies = async (
   report: MavenDependencyAnalysisReport,
+  onProgress?: ScanProgressCallback,
 ): Promise<MavenDependencyAnalysisReport> => {
   const inputs: MavenDependencyInput[] = report.dependencies.map((dep) => ({
     groupId: dep.groupId,
@@ -104,5 +87,5 @@ export const rescanMavenDependencies = async (
     scope: dep.scope,
   }));
 
-  return analyzeMavenDependencies(report.pomXmlPath, report.projectLabel, inputs);
+  return analyzeMavenDependencies(report.pomXmlPath, report.projectLabel, inputs, onProgress);
 };

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type { GlobalNpmModule, GlobalNpmModulesReport } from '../types';
+import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
 import { listGlobalNpmPackages, type GlobalNpmListEntry } from './npmGlobalList';
 import { normalizeVersion } from './semver';
@@ -12,31 +13,6 @@ export const inferGlobalNpmCompareVersion = (installedVersion: string): string |
   const match = normalized.match(/^(\d+\.\d+\.\d+)/);
 
   return match?.[1] ?? null;
-};
-
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> => {
-  const results: R[] = new Array(items.length);
-  let index = 0;
-
-  const worker = async () => {
-    while (index < items.length) {
-      const currentIndex = index;
-      index += 1;
-      results[currentIndex] = await fn(items[currentIndex]);
-    }
-  };
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
-
-  await Promise.all(workers);
-  return results;
 };
 
 const analyzeOne = async (input: GlobalNpmListEntry): Promise<GlobalNpmModule> => {
@@ -77,7 +53,9 @@ const analyzeOne = async (input: GlobalNpmListEntry): Promise<GlobalNpmModule> =
   };
 };
 
-export const scanGlobalNpmModules = async (): Promise<GlobalNpmModulesReport> => {
+export const scanGlobalNpmModules = async (
+  onProgress?: ScanProgressCallback,
+): Promise<GlobalNpmModulesReport> => {
   const { packages, listError } = await listGlobalNpmPackages();
 
   if (listError) {
@@ -88,7 +66,12 @@ export const scanGlobalNpmModules = async (): Promise<GlobalNpmModulesReport> =>
     };
   }
 
-  const modules = await mapWithConcurrency(packages, REGISTRY_CONCURRENCY, analyzeOne);
+  const modules = await mapWithConcurrency(
+    packages,
+    REGISTRY_CONCURRENCY,
+    analyzeOne,
+    onProgress,
+  );
 
   return {
     modules,

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FileDown, FileSearch, RefreshCw } from 'lucide-react';
+import { useScanProgress } from '../hooks/useScanProgress';
 import type { DependencyAnalysisReport } from '../types';
 import { DependencyTable } from './DependencyTable';
+import { ScanProgressBar } from './ScanProgressBar';
 
 export const DependencyAnalyzerApp = () => {
+  const { progress: scanProgress, runWithProgress } = useScanProgress();
   const [report, setReport] = useState<DependencyAnalysisReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -32,7 +35,9 @@ export const DependencyAnalyzerApp = () => {
     setExportMessage(null);
 
     try {
-      const updated = await window.versionTracker.rescanDependencies(report);
+      const updated = await runWithProgress(() =>
+        window.versionTracker.rescanDependencies(report),
+      );
       setReport(updated);
     } catch {
       setError('Unable to rescan dependencies.');
@@ -47,7 +52,7 @@ export const DependencyAnalyzerApp = () => {
     setExportMessage(null);
 
     try {
-      const updated = await window.versionTracker.changePackageJson();
+      const updated = await runWithProgress(() => window.versionTracker.changePackageJson());
       setReport(updated);
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
@@ -156,6 +161,10 @@ export const DependencyAnalyzerApp = () => {
             <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
               {error}
             </div>
+          )}
+
+          {(isScanning || isChangingFile) && scanProgress && (
+            <ScanProgressBar progress={scanProgress} />
           )}
 
           {isLoading ? (

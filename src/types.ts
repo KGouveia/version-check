@@ -1,5 +1,10 @@
 export type SoftwareKind = 'nodejs' | 'python' | 'java' | 'maven' | 'git';
 
+export interface ScanProgress {
+  completed: number;
+  total: number;
+}
+
 export type VersionStatus =
   | 'unknown'
   | 'up-to-date'

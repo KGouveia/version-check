@@ -6,36 +6,12 @@ import type {
 } from '../types';
 import { fetchPipIndexVersionInfo } from './pipIndexVersions';
 import { listPipPackages } from './pipList';
+import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { inferPipCompareVersion, pypiPackagePageUrl } from './pypiRegistry';
 import { resolvePythonExecutable, type ResolvedPythonExecutable } from './pythonExecutable';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const REGISTRY_CONCURRENCY = 8;
-
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> => {
-  const results: R[] = new Array(items.length);
-  let index = 0;
-
-  const worker = async () => {
-    while (index < items.length) {
-      const currentIndex = index;
-      index += 1;
-      results[currentIndex] = await fn(items[currentIndex]);
-    }
-  };
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
-
-  await Promise.all(workers);
-  return results;
-};
 
 const analyzeOne = async (
   input: PipDependencyInput,
@@ -85,10 +61,14 @@ export const analyzePipDependencies = async (
   projectLabel: string,
   inputs: PipDependencyInput[],
   executable?: ResolvedPythonExecutable,
+  onProgress?: ScanProgressCallback,
 ): Promise<PipDependencyAnalysisReport> => {
   const resolved = executable ?? (await resolvePythonExecutable());
-  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, (input) =>
-    analyzeOne(input, resolved),
+  const dependencies = await mapWithConcurrency(
+    inputs,
+    REGISTRY_CONCURRENCY,
+    (input) => analyzeOne(input, resolved),
+    onProgress,
   );
 
   return {
@@ -101,7 +81,9 @@ export const analyzePipDependencies = async (
   };
 };
 
-export const analyzePipEnvironment = async (): Promise<PipDependencyAnalysisReport> => {
+export const analyzePipEnvironment = async (
+  onProgress?: ScanProgressCallback,
+): Promise<PipDependencyAnalysisReport> => {
   const env = await listPipPackages();
   return analyzePipDependencies(
     env.pythonCommand,
@@ -110,12 +92,14 @@ export const analyzePipEnvironment = async (): Promise<PipDependencyAnalysisRepo
     env.projectLabel,
     env.dependencies,
     env.executable,
+    onProgress,
   );
 };
 
 export const rescanPipDependencies = async (
   report: PipDependencyAnalysisReport,
+  onProgress?: ScanProgressCallback,
 ): Promise<PipDependencyAnalysisReport> => {
   void report;
-  return analyzePipEnvironment();
+  return analyzePipEnvironment(onProgress);
 };

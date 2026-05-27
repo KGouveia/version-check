@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FileDown, FileSearch, RefreshCw } from 'lucide-react';
+import { useScanProgress } from '../hooks/useScanProgress';
 import type { MavenDependencyAnalysisReport } from '../types';
 import { MavenDependencyTable } from './MavenDependencyTable';
+import { ScanProgressBar } from './ScanProgressBar';
 
 export const MavenDependencyAnalyzerApp = () => {
+  const { progress: scanProgress, runWithProgress } = useScanProgress();
   const [report, setReport] = useState<MavenDependencyAnalysisReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -36,7 +39,9 @@ export const MavenDependencyAnalyzerApp = () => {
     setExportMessage(null);
 
     try {
-      const updated = await window.versionTracker.rescanMavenDependencies(report);
+      const updated = await runWithProgress(() =>
+        window.versionTracker.rescanMavenDependencies(report),
+      );
       setReport(updated);
     } catch {
       setError('Unable to rescan dependencies.');
@@ -51,7 +56,7 @@ export const MavenDependencyAnalyzerApp = () => {
     setExportMessage(null);
 
     try {
-      const updated = await window.versionTracker.changePomXml();
+      const updated = await runWithProgress(() => window.versionTracker.changePomXml());
       setReport(updated);
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
@@ -160,6 +165,10 @@ export const MavenDependencyAnalyzerApp = () => {
             <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
               {error}
             </div>
+          )}
+
+          {(isScanning || isChangingFile) && scanProgress && (
+            <ScanProgressBar progress={scanProgress} />
           )}
 
           {isLoading ? (

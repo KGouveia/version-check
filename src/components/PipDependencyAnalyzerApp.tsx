@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FileDown, RefreshCw } from 'lucide-react';
+import { useScanProgress } from '../hooks/useScanProgress';
 import type { PipDependencyAnalysisReport } from '../types';
 import { PipDependencyTable } from './PipDependencyTable';
+import { ScanProgressBar } from './ScanProgressBar';
 
 export const PipDependencyAnalyzerApp = () => {
+  const { progress: scanProgress, runWithProgress } = useScanProgress();
   const [report, setReport] = useState<PipDependencyAnalysisReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -35,7 +38,9 @@ export const PipDependencyAnalyzerApp = () => {
     setExportMessage(null);
 
     try {
-      const updated = await window.versionTracker.rescanPipDependencies(report);
+      const updated = await runWithProgress(() =>
+        window.versionTracker.rescanPipDependencies(report),
+      );
       setReport(updated);
     } catch {
       setError('Unable to rescan pip packages.');
@@ -124,6 +129,8 @@ export const PipDependencyAnalyzerApp = () => {
               {error}
             </div>
           )}
+
+          {isScanning && scanProgress && <ScanProgressBar progress={scanProgress} />}
 
           {isLoading ? (
             <div className="px-6 py-12 text-center text-sm text-zinc-400">

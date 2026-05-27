@@ -4,36 +4,12 @@ import type {
   DependencyAnalysisReport,
   PackageDependencyInput,
 } from '../types';
+import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
 import { inferCompareVersion } from './packageJsonAnalyzer';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
 const REGISTRY_CONCURRENCY = 8;
-
-const mapWithConcurrency = async <T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> => {
-  const results: R[] = new Array(items.length);
-  let index = 0;
-
-  const worker = async () => {
-    while (index < items.length) {
-      const currentIndex = index;
-      index += 1;
-      results[currentIndex] = await fn(items[currentIndex]);
-    }
-  };
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
-
-  await Promise.all(workers);
-  return results;
-};
 
 const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDependency> => {
   const compareVersion = inferCompareVersion(input.declaredVersion);
@@ -78,8 +54,14 @@ export const analyzeDependencies = async (
   packageJsonPath: string,
   projectLabel: string,
   inputs: PackageDependencyInput[],
+  onProgress?: ScanProgressCallback,
 ): Promise<DependencyAnalysisReport> => {
-  const dependencies = await mapWithConcurrency(inputs, REGISTRY_CONCURRENCY, analyzeOne);
+  const dependencies = await mapWithConcurrency(
+    inputs,
+    REGISTRY_CONCURRENCY,
+    analyzeOne,
+    onProgress,
+  );
 
   return {
     packageJsonPath,
@@ -91,6 +73,7 @@ export const analyzeDependencies = async (
 
 export const rescanDependencies = async (
   report: DependencyAnalysisReport,
+  onProgress?: ScanProgressCallback,
 ): Promise<DependencyAnalysisReport> => {
   const inputs: PackageDependencyInput[] = report.dependencies.map((dep) => ({
     name: dep.name,
@@ -98,5 +81,5 @@ export const rescanDependencies = async (
     section: dep.section,
   }));
 
-  return analyzeDependencies(report.packageJsonPath, report.projectLabel, inputs);
+  return analyzeDependencies(report.packageJsonPath, report.projectLabel, inputs, onProgress);
 };

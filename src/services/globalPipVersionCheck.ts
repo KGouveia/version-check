@@ -1,8 +1,11 @@
 import type { GlobalPipModulesReport } from '../types';
 import { analyzePipDependencies } from './pipDependencyVersionCheck';
 import { listPipPackages } from './pipList';
+import type { ScanProgressCallback } from './mapWithConcurrency';
 
-export const scanGlobalPipModules = async (): Promise<GlobalPipModulesReport> => {
+export const scanGlobalPipModules = async (
+  onProgress?: ScanProgressCallback,
+): Promise<GlobalPipModulesReport> => {
   try {
     const env = await listPipPackages();
     const report = await analyzePipDependencies(
@@ -12,6 +15,7 @@ export const scanGlobalPipModules = async (): Promise<GlobalPipModulesReport> =>
       env.projectLabel,
       env.dependencies,
       env.executable,
+      onProgress,
     );
 
     return {

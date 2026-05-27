@@ -1,7 +1,8 @@
 import { RefreshCw } from 'lucide-react';
-import type { GlobalNpmModulesReport } from '../types';
+import type { GlobalNpmModulesReport, ScanProgress } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalNpmModulesTable } from './GlobalNpmModulesTable';
+import { ScanProgressBar } from './ScanProgressBar';
 
 const secondaryButtonClass =
   'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/50 px-3.5 py-2 text-sm font-medium leading-none text-zinc-200 whitespace-nowrap transition hover:border-cyan-500/80 hover:bg-zinc-900 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-60';
@@ -12,6 +13,7 @@ const errorBannerClass =
 interface GlobalNpmModulesSectionProps {
   report: GlobalNpmModulesReport | null;
   isScanning: boolean;
+  scanProgress: ScanProgress | null;
   isBusy: boolean;
   upgradingPackage: string | null;
   sectionError: string | null;
@@ -23,6 +25,7 @@ interface GlobalNpmModulesSectionProps {
 export const GlobalNpmModulesSection = ({
   report,
   isScanning,
+  scanProgress,
   isBusy,
   upgradingPackage,
   sectionError,
@@ -64,7 +67,9 @@ export const GlobalNpmModulesSection = ({
       }
       errorBanner={errorBanner}
     >
-      {isScanning && !report ? (
+      {isScanning && scanProgress && !report ? (
+        <ScanProgressBar progress={scanProgress} itemLabel="modules" />
+      ) : isScanning && !report ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
           Scanning global npm packages…
         </div>
@@ -73,13 +78,18 @@ export const GlobalNpmModulesSection = ({
           Click Scan to list global npm packages and check registry versions.
         </div>
       ) : (
-        <GlobalNpmModulesTable
-          modules={report?.modules ?? []}
-          isBusy={isBusy}
-          upgradingPackage={upgradingPackage}
-          onOpenNpm={onOpenNpm}
-          onUpgrade={onUpgrade}
-        />
+        <>
+          {isScanning && scanProgress && (
+            <ScanProgressBar progress={scanProgress} itemLabel="modules" />
+          )}
+          <GlobalNpmModulesTable
+            modules={report?.modules ?? []}
+            isBusy={isBusy}
+            upgradingPackage={upgradingPackage}
+            onOpenNpm={onOpenNpm}
+            onUpgrade={onUpgrade}
+          />
+        </>
       )}
     </CollapsibleSection>
   );

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import crypto from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -54,6 +54,7 @@ import { isValidPypiPackageName } from './constants/pypiPackageName';
 import { npmPackagePageUrl } from './services/npmRegistry';
 import { pypiPackagePageUrl } from './services/pypiRegistry';
 import { SOFTWARE_KIND_LABELS } from './constants/softwareCatalog';
+import type { ScanProgressCallback } from './services/mapWithConcurrency';
 import type {
   AddSoftwareInput,
   DependencyAnalysisReport,
@@ -61,9 +62,23 @@ import type {
   GlobalPipModulesReport,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
+  ScanProgress,
   SoftwareKind,
   TrackedSoftware,
 } from './types';
+
+const SCAN_PROGRESS_CHANNEL = 'scan:progress';
+
+const createScanProgressReporter = (event: IpcMainInvokeEvent): ScanProgressCallback => {
+  return (completed, total) => {
+    if (event.sender.isDestroyed()) {
+      return;
+    }
+
+    const progress: ScanProgress = { completed, total };
+    event.sender.send(SCAN_PROGRESS_CHANNEL, progress);
+  };
+};
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -213,9 +228,10 @@ const pickPackageJson = async (): Promise<string | null> => {
 
 const analyzePackageJsonAtPath = async (
   packageJsonPath: string,
+  onProgress?: ScanProgressCallback,
 ): Promise<DependencyAnalysisReport> => {
   const { projectLabel, dependencies } = await parsePackageJsonDependencies(packageJsonPath);
-  return analyzeDependencies(packageJsonPath, projectLabel, dependencies);
+  return analyzeDependencies(packageJsonPath, projectLabel, dependencies, onProgress);
 };
 
 const pickPomXml = async (): Promise<string | null> => {
@@ -238,9 +254,12 @@ const pickPomXml = async (): Promise<string | null> => {
   return filePath;
 };
 
-const analyzePomAtPath = async (pomXmlPath: string): Promise<MavenDependencyAnalysisReport> => {
+const analyzePomAtPath = async (
+  pomXmlPath: string,
+  onProgress?: ScanProgressCallback,
+): Promise<MavenDependencyAnalysisReport> => {
   const { projectLabel, dependencies } = await parsePomXmlDependencies(pomXmlPath);
-  return analyzeMavenDependencies(pomXmlPath, projectLabel, dependencies);
+  return analyzeMavenDependencies(pomXmlPath, projectLabel, dependencies, onProgress);
 };
 
 const defaultDownloadUrl: Record<SoftwareKind, string> = {
@@ -364,14 +383,17 @@ const registerIpcHandlers = () => {
     await shell.openExternal(url);
   });
 
-  ipcMain.handle('deps:open-analyzer', async (): Promise<void> => {
+  ipcMain.handle('deps:open-analyzer', async (event): Promise<void> => {
     const packageJsonPath = await pickPackageJson();
 
     if (!packageJsonPath) {
       return;
     }
 
-    pendingDependencyReport = await analyzePackageJsonAtPath(packageJsonPath);
+    pendingDependencyReport = await analyzePackageJsonAtPath(
+      packageJsonPath,
+      createScanProgressReporter(event),
+    );
     createDependencyWindow();
   });
 
@@ -385,24 +407,30 @@ const registerIpcHandlers = () => {
 
   ipcMain.handle(
     'deps:rescan',
-    async (_event, report: DependencyAnalysisReport): Promise<DependencyAnalysisReport> => {
-      const updated = await rescanDependencies(report);
+    async (event, report: DependencyAnalysisReport): Promise<DependencyAnalysisReport> => {
+      const updated = await rescanDependencies(report, createScanProgressReporter(event));
       pendingDependencyReport = updated;
       return updated;
     },
   );
 
-  ipcMain.handle('deps:change-package-json', async (): Promise<DependencyAnalysisReport> => {
-    const packageJsonPath = await pickPackageJson();
+  ipcMain.handle(
+    'deps:change-package-json',
+    async (event): Promise<DependencyAnalysisReport> => {
+      const packageJsonPath = await pickPackageJson();
 
-    if (!packageJsonPath) {
-      throw new Error('File selection was canceled.');
-    }
+      if (!packageJsonPath) {
+        throw new Error('File selection was canceled.');
+      }
 
-    const updated = await analyzePackageJsonAtPath(packageJsonPath);
-    pendingDependencyReport = updated;
-    return updated;
-  });
+      const updated = await analyzePackageJsonAtPath(
+        packageJsonPath,
+        createScanProgressReporter(event),
+      );
+      pendingDependencyReport = updated;
+      return updated;
+    },
+  );
 
   ipcMain.handle('deps:open-npm-package', async (_event, packageName: string): Promise<void> => {
     if (typeof packageName !== 'string' || !isValidNpmPackageName(packageName)) {
@@ -436,14 +464,17 @@ const registerIpcHandlers = () => {
     },
   );
 
-  ipcMain.handle('maven-deps:open-analyzer', async (): Promise<void> => {
+  ipcMain.handle('maven-deps:open-analyzer', async (event): Promise<void> => {
     const pomXmlPath = await pickPomXml();
 
     if (!pomXmlPath) {
       return;
     }
 
-    pendingMavenDependencyReport = await analyzePomAtPath(pomXmlPath);
+    pendingMavenDependencyReport = await analyzePomAtPath(
+      pomXmlPath,
+      createScanProgressReporter(event),
+    );
     createMavenDependencyWindow();
   });
 
@@ -461,10 +492,10 @@ const registerIpcHandlers = () => {
   ipcMain.handle(
     'maven-deps:rescan',
     async (
-      _event,
+      event,
       report: MavenDependencyAnalysisReport,
     ): Promise<MavenDependencyAnalysisReport> => {
-      const updated = await rescanMavenDependencies(report);
+      const updated = await rescanMavenDependencies(report, createScanProgressReporter(event));
       pendingMavenDependencyReport = updated;
       return updated;
     },
@@ -472,14 +503,14 @@ const registerIpcHandlers = () => {
 
   ipcMain.handle(
     'maven-deps:change-pom',
-    async (): Promise<MavenDependencyAnalysisReport> => {
+    async (event): Promise<MavenDependencyAnalysisReport> => {
       const pomXmlPath = await pickPomXml();
 
       if (!pomXmlPath) {
         throw new Error('File selection was canceled.');
       }
 
-      const updated = await analyzePomAtPath(pomXmlPath);
+      const updated = await analyzePomAtPath(pomXmlPath, createScanProgressReporter(event));
       pendingMavenDependencyReport = updated;
       return updated;
     },
@@ -526,8 +557,8 @@ const registerIpcHandlers = () => {
     },
   );
 
-  ipcMain.handle('pip-deps:open-analyzer', async (): Promise<void> => {
-    pendingPipDependencyReport = await analyzePipEnvironment();
+  ipcMain.handle('pip-deps:open-analyzer', async (event): Promise<void> => {
+    pendingPipDependencyReport = await analyzePipEnvironment(createScanProgressReporter(event));
     createPipDependencyWindow();
   });
 
@@ -545,10 +576,10 @@ const registerIpcHandlers = () => {
   ipcMain.handle(
     'pip-deps:rescan',
     async (
-      _event,
+      event,
       report: PipDependencyAnalysisReport,
     ): Promise<PipDependencyAnalysisReport> => {
-      const updated = await rescanPipDependencies(report);
+      const updated = await rescanPipDependencies(report, createScanProgressReporter(event));
       pendingPipDependencyReport = updated;
       return updated;
     },
@@ -578,15 +609,15 @@ const registerIpcHandlers = () => {
     },
   );
 
-  ipcMain.handle('global-npm:scan', async (): Promise<GlobalNpmModulesReport> => {
-    const report = await scanGlobalNpmModules();
+  ipcMain.handle('global-npm:scan', async (event): Promise<GlobalNpmModulesReport> => {
+    const report = await scanGlobalNpmModules(createScanProgressReporter(event));
     lastGlobalNpmReport = report;
     return report;
   });
 
   ipcMain.handle(
     'global-npm:upgrade',
-    async (_event, packageName: string): Promise<GlobalNpmModulesReport> => {
+    async (event, packageName: string): Promise<GlobalNpmModulesReport> => {
       if (typeof packageName !== 'string' || !isValidNpmPackageName(packageName)) {
         throw new Error('Invalid npm package name.');
       }
@@ -606,21 +637,21 @@ const registerIpcHandlers = () => {
 
       await upgradeGlobalNpmPackage(trimmed, resolveGlobalNpmUpgradeSpec(moduleEntry));
 
-      const report = await scanGlobalNpmModules();
+      const report = await scanGlobalNpmModules(createScanProgressReporter(event));
       lastGlobalNpmReport = report;
       return report;
     },
   );
 
-  ipcMain.handle('global-pip:scan', async (): Promise<GlobalPipModulesReport> => {
-    const report = await scanGlobalPipModules();
+  ipcMain.handle('global-pip:scan', async (event): Promise<GlobalPipModulesReport> => {
+    const report = await scanGlobalPipModules(createScanProgressReporter(event));
     lastGlobalPipReport = report;
     return report;
   });
 
   ipcMain.handle(
     'global-pip:upgrade',
-    async (_event, packageName: string): Promise<GlobalPipModulesReport> => {
+    async (event, packageName: string): Promise<GlobalPipModulesReport> => {
       if (typeof packageName !== 'string' || !isValidPypiPackageName(packageName)) {
         throw new Error('Invalid PyPI package name.');
       }
@@ -640,7 +671,7 @@ const registerIpcHandlers = () => {
 
       await upgradeGlobalPipPackage(trimmed, resolveGlobalPipUpgradeSpec(moduleEntry));
 
-      const report = await scanGlobalPipModules();
+      const report = await scanGlobalPipModules(createScanProgressReporter(event));
       lastGlobalPipReport = report;
       return report;
     },

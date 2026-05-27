@@ -1,7 +1,8 @@
 import { RefreshCw } from 'lucide-react';
-import type { GlobalPipModulesReport } from '../types';
+import type { GlobalPipModulesReport, ScanProgress } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalPipModulesTable } from './GlobalPipModulesTable';
+import { ScanProgressBar } from './ScanProgressBar';
 
 const secondaryButtonClass =
   'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/50 px-3.5 py-2 text-sm font-medium leading-none text-zinc-200 whitespace-nowrap transition hover:border-cyan-500/80 hover:bg-zinc-900 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-60';
@@ -12,6 +13,7 @@ const errorBannerClass =
 interface GlobalPipModulesSectionProps {
   report: GlobalPipModulesReport | null;
   isScanning: boolean;
+  scanProgress: ScanProgress | null;
   isBusy: boolean;
   upgradingPackage: string | null;
   sectionError: string | null;
@@ -23,6 +25,7 @@ interface GlobalPipModulesSectionProps {
 export const GlobalPipModulesSection = ({
   report,
   isScanning,
+  scanProgress,
   isBusy,
   upgradingPackage,
   sectionError,
@@ -69,7 +72,9 @@ export const GlobalPipModulesSection = ({
       }
       errorBanner={errorBanner}
     >
-      {isScanning && !report ? (
+      {isScanning && scanProgress && !report ? (
+        <ScanProgressBar progress={scanProgress} itemLabel="packages" />
+      ) : isScanning && !report ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
           Scanning pip packages…
         </div>
@@ -78,14 +83,19 @@ export const GlobalPipModulesSection = ({
           Click Scan to list pip packages in this Python environment and check index versions.
         </div>
       ) : (
-        <GlobalPipModulesTable
-          modules={report?.modules ?? []}
-          pythonPipInvoke={report?.pythonPipInvoke ?? ''}
-          isBusy={isBusy}
-          upgradingPackage={upgradingPackage}
-          onOpenPip={onOpenPip}
-          onUpgrade={onUpgrade}
-        />
+        <>
+          {isScanning && scanProgress && (
+            <ScanProgressBar progress={scanProgress} itemLabel="packages" />
+          )}
+          <GlobalPipModulesTable
+            modules={report?.modules ?? []}
+            pythonPipInvoke={report?.pythonPipInvoke ?? ''}
+            isBusy={isBusy}
+            upgradingPackage={upgradingPackage}
+            onOpenPip={onOpenPip}
+            onUpgrade={onUpgrade}
+          />
+        </>
       )}
     </CollapsibleSection>
   );
