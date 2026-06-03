@@ -7,6 +7,7 @@ import {
 } from '../constants/softwareCatalog';
 import type { SoftwareKind, TrackedSoftware } from '../types';
 import { latestVersionCellTone } from '../services/versionCompareDisplay';
+import { formatDateTime } from '../utils/formatDateTime';
 import { StatusBadge } from './StatusBadge';
 
 type SoftwareRow =
@@ -21,17 +22,6 @@ interface SoftwareTableProps {
   onToggleMonitor: (kind: SoftwareKind, enabled: boolean) => Promise<void>;
   onOpenDownload: (url: string) => Promise<void>;
 }
-
-const formatDate = (date: string | null) => {
-  if (!date) {
-    return 'Never';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date));
-};
 
 const formatLatestMinorVersion = (item: TrackedSoftware) =>
   item.latestSameReleaseLineVersion ?? 'Unavailable';
@@ -180,7 +170,7 @@ export const SoftwareTable = ({
                       <StatusBadge status={item.status} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-zinc-400">
-                      {formatDate(item.lastCheckedAt)}
+                      {formatDateTime(item.lastCheckedAt)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end">

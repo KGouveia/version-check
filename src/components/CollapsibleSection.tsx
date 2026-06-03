@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 interface CollapsibleSectionProps {
   title: string;
   subtitle?: ReactNode;
+  headerMeta?: ReactNode;
   actions?: ReactNode;
   errorBanner?: ReactNode;
   className?: string;
@@ -19,6 +20,7 @@ const toggleButtonClass =
 export const CollapsibleSection = ({
   title,
   subtitle,
+  headerMeta,
   actions,
   errorBanner,
   className = '',
@@ -29,7 +31,7 @@ export const CollapsibleSection = ({
 
   return (
     <section className={`${sectionClass} ${className}`.trim()}>
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
+      <div className="flex items-center gap-4 border-b border-zinc-800 px-6 py-3">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -47,6 +49,9 @@ export const CollapsibleSection = ({
             {subtitle}
           </div>
         </button>
+        {headerMeta ? (
+          <div className="flex min-w-0 flex-1 justify-center text-sm">{headerMeta}</div>
+        ) : null}
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
 

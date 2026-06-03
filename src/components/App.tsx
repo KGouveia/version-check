@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileSearch, RefreshCw } from 'lucide-react';
 import { SOFTWARE_KIND_LABELS } from '../constants/softwareCatalog';
 import type {
@@ -13,6 +13,8 @@ import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { GlobalPipModulesSection } from './GlobalPipModulesSection';
 import { ScanProgressBar } from './ScanProgressBar';
 import { SoftwareTable } from './SoftwareTable';
+import { formatDateTime } from '../utils/formatDateTime';
+import { getLastScanAt, isScanStale } from '../utils/scanStaleness';
 
 const secondaryButtonClass =
   'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/50 px-3.5 py-2 text-sm font-medium leading-none text-zinc-200 whitespace-nowrap transition hover:border-cyan-500/80 hover:bg-zinc-900 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-60';
@@ -259,6 +261,9 @@ export const App = () => {
     isScanningGlobalPip || upgradingPipPackage !== null ? scanProgress : null;
   const analyzerOpenProgress = isOpeningAnalyzer ? scanProgress : null;
 
+  const lastScanAt = useMemo(() => getLastScanAt(software), [software]);
+  const lastScanStale = isScanStale(lastScanAt);
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6">
@@ -312,6 +317,11 @@ export const App = () => {
 
         <CollapsibleSection
           title="Monitored software"
+          headerMeta={
+            <span className={lastScanStale ? 'text-red-400' : 'text-zinc-500'}>
+              Last scan: {formatDateTime(lastScanAt)}
+            </span>
+          }
           actions={
             <button
               type="button"
