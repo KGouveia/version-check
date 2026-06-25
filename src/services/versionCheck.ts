@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TrackedSoftware } from '../types';
-import { compareVersions, normalizeVersion } from './semver';
+import { compareVersions, parseVersionParts } from './semver';
 import { proxyFetch } from './proxyNetwork';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
@@ -18,11 +18,24 @@ const getLocalNodeVersion = async (): Promise<string> => {
   return stdout.trim();
 };
 
-const nodeSameReleaseLinePrefix = (current: string): string | null => {
-  const core = normalizeVersion(current).split('-')[0]?.split('+')[0] ?? '';
-  const match = core.match(/^(\d+\.\d+)\./);
+/** Latest within the same Node.js major line (e.g. 22.12.0 → latest 22.x). */
+const nodeSameMajorLine = (current: string, releases: NodeRelease[]): string | null => {
+  const [currentMajor] = parseVersionParts(current);
+  let best: string | null = null;
 
-  return match?.[1] ? `${match[1]}.` : null;
+  for (const release of releases) {
+    const [major] = parseVersionParts(release.version);
+
+    if (major !== currentMajor) {
+      continue;
+    }
+
+    if (!best || compareVersions(release.version, best) > 0) {
+      best = release.version;
+    }
+  }
+
+  return best;
 };
 
 const fetchNodeVersionInfo = async (
@@ -51,25 +64,9 @@ const fetchNodeVersionInfo = async (
     throw new Error('No stable Node.js release was found.');
   }
 
-  const prefix = currentVersion ? nodeSameReleaseLinePrefix(currentVersion) : null;
-  let latestSameReleaseLineVersion: string | null = null;
-
-  if (prefix) {
-    for (const release of stable) {
-      const core = normalizeVersion(release.version).split('-')[0]?.split('+')[0] ?? '';
-
-      if (!core.startsWith(prefix)) {
-        continue;
-      }
-
-      if (
-        !latestSameReleaseLineVersion ||
-        compareVersions(release.version, latestSameReleaseLineVersion) > 0
-      ) {
-        latestSameReleaseLineVersion = release.version;
-      }
-    }
-  }
+  const latestSameReleaseLineVersion = currentVersion
+    ? nodeSameMajorLine(currentVersion, stable)
+    : null;
 
   return { latestVersion, latestSameReleaseLineVersion };
 };
