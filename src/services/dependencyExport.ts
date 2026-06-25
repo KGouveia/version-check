@@ -49,6 +49,14 @@ const countByStatus = (dependencies: AnalyzedDependency[]): string => {
     .join(', ');
 };
 
+const formatVulnerabilityCount = (count: number | null): string => {
+  if (count === null) {
+    return '—';
+  }
+
+  return String(count);
+};
+
 const formatStatusTable = (status: VersionStatus, dependencies: AnalyzedDependency[]): string => {
   const rows = dependencies
     .filter((dep) => dep.status === status)
@@ -59,15 +67,15 @@ const formatStatusTable = (status: VersionStatus, dependencies: AnalyzedDependen
   }
 
   const header =
-    '| Package | Section | Declared | Resolved | Latest (same minor line) | Latest (registry) | npm | Error |';
+    '| Package | Section | Declared | Resolved | Latest (same minor line) | Latest (registry) | Vulnerabilities | npm | Error |';
   const separator =
-    '|---------|---------|----------|----------|--------------------------|-------------------|-----|-------|';
+    '|---------|---------|----------|----------|--------------------------|-------------------|-----------------|-----|-------|';
 
   const body = rows
     .map((dep) => {
       const npmLink = `[${escapeTableCell(dep.name)}](${dep.downloadUrl})`;
 
-      return `| ${cell(dep.name)} | ${SECTION_LABEL[dep.section]} | ${cell(dep.declaredVersion)} | ${cell(dep.compareVersion)} | ${cell(dep.latestSameReleaseLineVersion)} | ${cell(dep.latestVersion)} | ${npmLink} | ${cell(dep.error)} |`;
+      return `| ${cell(dep.name)} | ${SECTION_LABEL[dep.section]} | ${cell(dep.declaredVersion)} | ${cell(dep.compareVersion)} | ${cell(dep.latestSameReleaseLineVersion)} | ${cell(dep.latestVersion)} | ${formatVulnerabilityCount(dep.vulnerabilityCount)} | ${npmLink} | ${cell(dep.error)} |`;
     })
     .join('\n');
 
@@ -89,8 +97,13 @@ export const formatDependencyAnalysisMarkdown = (
     `- **packageJsonPath**: ${escapeTableCell(report.packageJsonPath)}`,
     `- **analyzedAt**: ${report.analyzedAt}`,
     `- **counts**: ${counts || 'none'}`,
+    report.vulnerabilityCheckError
+      ? `- **vulnerabilityCheckError**: ${escapeTableCell(report.vulnerabilityCheckError)}`
+      : null,
     '',
-  ].join('\n');
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n');
 
   const tables = STATUS_DISPLAY_ORDER.map((status) =>
     formatStatusTable(status, report.dependencies),

@@ -3,6 +3,7 @@ import type { GlobalNpmModule, GlobalNpmModulesReport } from '../types';
 import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
 import { listGlobalNpmPackages, type GlobalNpmListEntry } from './npmGlobalList';
+import { attachOsvNpmVulnerabilityCounts } from './osvNpmVulnerabilities';
 import { normalizeVersion } from './semver';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
@@ -50,6 +51,7 @@ const analyzeOne = async (input: GlobalNpmListEntry): Promise<GlobalNpmModule> =
     downloadUrl: npmPackagePageUrl(input.name),
     lastCheckedAt: checkedAt,
     error,
+    vulnerabilityCount: null,
   };
 };
 
@@ -73,9 +75,13 @@ export const scanGlobalNpmModules = async (
     onProgress,
   );
 
+  const { items: modulesWithVulns, error: vulnerabilityCheckError } =
+    await attachOsvNpmVulnerabilityCounts(modules, (module) => module.installedVersion);
+
   return {
-    modules,
+    modules: modulesWithVulns,
     scannedAt: new Date().toISOString(),
     listError: null,
+    vulnerabilityCheckError,
   };
 };

@@ -6,6 +6,7 @@ import {
 } from '../services/globalNpmUpgradePolicy';
 import { latestVersionCellToneSimple } from '../services/versionCompareDisplay';
 import { StatusBadge } from './StatusBadge';
+import { VulnerabilityCountCell } from './VulnerabilityCountCell';
 
 interface GlobalNpmModulesTableProps {
   modules: GlobalNpmModule[];
@@ -53,13 +54,14 @@ export const GlobalNpmModulesTable = ({
     <div className="overflow-x-auto">
       <table className="w-full table-fixed border-collapse text-left text-sm">
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[14%]" />
-          <col className="w-[14%]" />
+          <col className="w-[20%]" />
           <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[8%]" />
         </colgroup>
         <thead className="border-b border-zinc-800 bg-zinc-900/70 text-xs uppercase tracking-wide text-zinc-500">
           <tr>
@@ -68,6 +70,7 @@ export const GlobalNpmModulesTable = ({
             <th className="px-2 py-2 font-semibold">Latest minor</th>
             <th className="px-2 py-2 font-semibold">Latest</th>
             <th className="px-2 py-2 font-semibold">Status</th>
+            <th className="px-2 py-2 font-semibold">Vulnerabilities</th>
             <th className="px-2 py-2 font-semibold">Checked</th>
             <th className="px-2 py-2 text-right font-semibold">
               <span className="sr-only">Actions</span>
@@ -123,6 +126,9 @@ export const GlobalNpmModulesTable = ({
                 </td>
                 <td className="px-2 py-2">
                   <StatusBadge status={item.status} compact />
+                </td>
+                <td className="px-2 py-2">
+                  <VulnerabilityCountCell count={item.vulnerabilityCount} compact />
                 </td>
                 <td className="truncate px-2 py-2 text-xs text-zinc-400">
                   {formatDate(item.lastCheckedAt)}

@@ -36,11 +36,16 @@ export const GlobalNpmModulesSection = ({
   const scanLabel = report ? 'Rescan' : 'Scan';
 
   const errorBanner =
-    sectionError || (report?.listError && !sectionError) ? (
+    sectionError || report?.listError || report?.vulnerabilityCheckError ? (
       <>
         {sectionError && <div className={errorBannerClass}>{sectionError}</div>}
         {report?.listError && !sectionError && (
           <div className={errorBannerClass}>{report.listError}</div>
+        )}
+        {report?.vulnerabilityCheckError && !sectionError && !report?.listError && (
+          <div className={errorBannerClass}>
+            Vulnerability check failed: {report.vulnerabilityCheckError}
+          </div>
         )}
       </>
     ) : undefined;
@@ -55,7 +60,7 @@ export const GlobalNpmModulesSection = ({
           onClick={onScan}
           disabled={isBusy || isScanning}
           className={secondaryButtonClass}
-          title="List global npm packages and check registry versions"
+          title="List global npm packages and check registry versions and OSV vulnerabilities"
         >
           <RefreshCw
             size={16}
@@ -75,7 +80,7 @@ export const GlobalNpmModulesSection = ({
         </div>
       ) : !report && !isScanning ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
-          Click Scan to list global npm packages and check registry versions.
+          Click Scan to list global npm packages and check registry versions and OSV vulnerabilities.
         </div>
       ) : (
         <>

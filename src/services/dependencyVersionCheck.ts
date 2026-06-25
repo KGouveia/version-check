@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
 import { fetchNpmVersionInfo, npmPackagePageUrl } from './npmRegistry';
+import { attachOsvNpmVulnerabilityCounts } from './osvNpmVulnerabilities';
 import { inferCompareVersion } from './packageJsonAnalyzer';
 import { resolveBehindTierForKind } from './versionKindTiers';
 
@@ -47,6 +48,7 @@ const analyzeOne = async (input: PackageDependencyInput): Promise<AnalyzedDepend
     downloadUrl: npmPackagePageUrl(input.name),
     lastCheckedAt: checkedAt,
     error,
+    vulnerabilityCount: null,
   };
 };
 
@@ -63,11 +65,15 @@ export const analyzeDependencies = async (
     onProgress,
   );
 
+  const { items: dependenciesWithVulns, error: vulnerabilityCheckError } =
+    await attachOsvNpmVulnerabilityCounts(dependencies, (dep) => dep.compareVersion);
+
   return {
     packageJsonPath,
     projectLabel,
-    dependencies,
+    dependencies: dependenciesWithVulns,
     analyzedAt: new Date().toISOString(),
+    vulnerabilityCheckError,
   };
 };
 

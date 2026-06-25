@@ -55,6 +55,8 @@ export interface AnalyzedDependency {
   downloadUrl: string;
   lastCheckedAt: string | null;
   error: string | null;
+  /** Known direct vulnerabilities for compareVersion; null when no version to check. */
+  vulnerabilityCount: number | null;
 }
 
 export interface DependencyAnalysisReport {
@@ -62,6 +64,7 @@ export interface DependencyAnalysisReport {
   projectLabel: string;
   dependencies: AnalyzedDependency[];
   analyzedAt: string;
+  vulnerabilityCheckError?: string | null;
 }
 
 export type MavenDependencyScope =
@@ -139,12 +142,15 @@ export interface GlobalNpmModule {
   downloadUrl: string;
   lastCheckedAt: string | null;
   error: string | null;
+  /** Known direct vulnerabilities for installedVersion; null when no version to check. */
+  vulnerabilityCount: number | null;
 }
 
 export interface GlobalNpmModulesReport {
   modules: GlobalNpmModule[];
   scannedAt: string;
   listError: string | null;
+  vulnerabilityCheckError?: string | null;
 }
 
 /** Same shape as analyzed pip rows; used for the main-window environment scan. */

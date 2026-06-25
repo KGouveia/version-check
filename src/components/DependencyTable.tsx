@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import type { AnalyzedDependency } from '../types';
 import { latestVersionCellToneSimple } from '../services/versionCompareDisplay';
 import { StatusBadge } from './StatusBadge';
+import { VulnerabilityCountCell } from './VulnerabilityCountCell';
 
 interface DependencyTableProps {
   dependencies: AnalyzedDependency[];
@@ -59,6 +60,7 @@ export const DependencyTable = ({
             <th className="px-4 py-3 font-semibold">Latest minor version</th>
             <th className="px-4 py-3 font-semibold">Latest version</th>
             <th className="px-4 py-3 font-semibold">Status</th>
+            <th className="px-4 py-3 font-semibold">Vulnerabilities</th>
             <th className="px-4 py-3 font-semibold">Last checked</th>
             <th className="px-6 py-3 text-right font-semibold">Actions</th>
           </tr>
@@ -104,6 +106,9 @@ export const DependencyTable = ({
                 </td>
                 <td className="px-4 py-4">
                   <StatusBadge status={item.status} />
+                </td>
+                <td className="px-4 py-4">
+                  <VulnerabilityCountCell count={item.vulnerabilityCount} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-400">
                   {formatDate(item.lastCheckedAt)}
