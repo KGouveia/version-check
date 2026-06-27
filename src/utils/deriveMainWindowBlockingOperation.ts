@@ -4,6 +4,8 @@ import type { BlockingOperation, ScanProgress, SoftwareKind } from '../types';
 export interface MainWindowBlockingInput {
   upgradingNpmPackage: string | null;
   upgradingPipPackage: string | null;
+  uninstallingNpmPackage: string | null;
+  uninstallingPipPackage: string | null;
   isScanningGlobalNpm: boolean;
   isScanningGlobalPip: boolean;
   isScanning: boolean;
@@ -20,6 +22,8 @@ export const deriveMainWindowBlockingOperation = (
   const {
     upgradingNpmPackage,
     upgradingPipPackage,
+    uninstallingNpmPackage,
+    uninstallingPipPackage,
     isScanningGlobalNpm,
     isScanningGlobalPip,
     isScanning,
@@ -63,6 +67,42 @@ export const deriveMainWindowBlockingOperation = (
       kind: 'upgrade',
       title: `Installing ${upgradingPipPackage}…`,
       subtitle: 'Running pip install --upgrade',
+    };
+  }
+
+  if (uninstallingNpmPackage) {
+    if (scanProgress) {
+      return {
+        kind: 'uninstall',
+        title: `Refreshing version checks for ${uninstallingNpmPackage}…`,
+        subtitle: 'Global npm module',
+        progress: scanProgress,
+        progressItemLabel: 'modules',
+      };
+    }
+
+    return {
+      kind: 'uninstall',
+      title: `Uninstalling ${uninstallingNpmPackage}…`,
+      subtitle: 'Running npm uninstall -g',
+    };
+  }
+
+  if (uninstallingPipPackage) {
+    if (scanProgress) {
+      return {
+        kind: 'uninstall',
+        title: `Refreshing version checks for ${uninstallingPipPackage}…`,
+        subtitle: 'Pip package',
+        progress: scanProgress,
+        progressItemLabel: 'packages',
+      };
+    }
+
+    return {
+      kind: 'uninstall',
+      title: `Uninstalling ${uninstallingPipPackage}…`,
+      subtitle: 'Running pip uninstall',
     };
   }
 

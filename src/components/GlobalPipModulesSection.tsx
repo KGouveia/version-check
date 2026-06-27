@@ -13,33 +13,43 @@ const errorBannerClass =
 interface GlobalPipModulesSectionProps {
   report: GlobalPipModulesReport | null;
   isScanning: boolean;
-  isUpgrading: boolean;
+  isMutating: boolean;
   scanProgress: ScanProgress | null;
   showInlineProgress: boolean;
   isBusy: boolean;
   upgradingPackage: string | null;
+  uninstallingPackage: string | null;
   sectionError: string | null;
   onScan: () => void;
   onOpenPip: (packageName: string) => Promise<void>;
   onUpgrade: (packageName: string, target: GlobalPipUpgradeTarget) => Promise<void>;
+  onUninstall: (packageName: string) => void;
 }
 
 export const GlobalPipModulesSection = ({
   report,
   isScanning,
-  isUpgrading,
+  isMutating,
   scanProgress,
   showInlineProgress,
   isBusy,
   upgradingPackage,
+  uninstallingPackage,
   sectionError,
   onScan,
   onOpenPip,
   onUpgrade,
+  onUninstall,
 }: GlobalPipModulesSectionProps) => {
   const scanLabel = report ? 'Rescan' : 'Scan';
-  const scanButtonLabel = isUpgrading ? 'Upgrading…' : isScanning ? 'Scanning…' : scanLabel;
-  const scanButtonBusy = isScanning || isUpgrading;
+  const scanButtonLabel = uninstallingPackage
+    ? 'Uninstalling…'
+    : upgradingPackage
+      ? 'Upgrading…'
+      : isScanning
+        ? 'Scanning…'
+        : scanLabel;
+  const scanButtonBusy = isScanning || isMutating;
 
   const errorBanner =
     sectionError || report?.listError || report?.vulnerabilityCheckError ? (
@@ -70,7 +80,7 @@ export const GlobalPipModulesSection = ({
         <button
           type="button"
           onClick={onScan}
-          disabled={isBusy || isScanning || isUpgrading}
+          disabled={isBusy || isScanning || isMutating}
           className={secondaryButtonClass}
           title="List pip packages in the monitored Python environment and check index versions and OSV vulnerabilities"
         >
@@ -104,8 +114,10 @@ export const GlobalPipModulesSection = ({
             pythonPipInvoke={report?.pythonPipInvoke ?? ''}
             isBusy={isBusy}
             upgradingPackage={upgradingPackage}
+            uninstallingPackage={uninstallingPackage}
             onOpenPip={onOpenPip}
             onUpgrade={onUpgrade}
+            onUninstall={onUninstall}
           />
         </>
       )}

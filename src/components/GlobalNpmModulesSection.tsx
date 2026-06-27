@@ -13,33 +13,43 @@ const errorBannerClass =
 interface GlobalNpmModulesSectionProps {
   report: GlobalNpmModulesReport | null;
   isScanning: boolean;
-  isUpgrading: boolean;
+  isMutating: boolean;
   scanProgress: ScanProgress | null;
   showInlineProgress: boolean;
   isBusy: boolean;
   upgradingPackage: string | null;
+  uninstallingPackage: string | null;
   sectionError: string | null;
   onScan: () => void;
   onOpenNpm: (packageName: string) => Promise<void>;
   onUpgrade: (packageName: string) => Promise<void>;
+  onUninstall: (packageName: string) => void;
 }
 
 export const GlobalNpmModulesSection = ({
   report,
   isScanning,
-  isUpgrading,
+  isMutating,
   scanProgress,
   showInlineProgress,
   isBusy,
   upgradingPackage,
+  uninstallingPackage,
   sectionError,
   onScan,
   onOpenNpm,
   onUpgrade,
+  onUninstall,
 }: GlobalNpmModulesSectionProps) => {
   const scanLabel = report ? 'Rescan' : 'Scan';
-  const scanButtonLabel = isUpgrading ? 'Upgrading…' : isScanning ? 'Scanning…' : scanLabel;
-  const scanButtonBusy = isScanning || isUpgrading;
+  const scanButtonLabel = uninstallingPackage
+    ? 'Uninstalling…'
+    : upgradingPackage
+      ? 'Upgrading…'
+      : isScanning
+        ? 'Scanning…'
+        : scanLabel;
+  const scanButtonBusy = isScanning || isMutating;
 
   const errorBanner =
     sectionError || report?.listError || report?.vulnerabilityCheckError ? (
@@ -65,7 +75,7 @@ export const GlobalNpmModulesSection = ({
         <button
           type="button"
           onClick={onScan}
-          disabled={isBusy || isScanning || isUpgrading}
+          disabled={isBusy || isScanning || isMutating}
           className={secondaryButtonClass}
           title="List global npm packages and check registry versions and OSV vulnerabilities"
         >
@@ -98,8 +108,10 @@ export const GlobalNpmModulesSection = ({
             modules={report?.modules ?? []}
             isBusy={isBusy}
             upgradingPackage={upgradingPackage}
+            uninstallingPackage={uninstallingPackage}
             onOpenNpm={onOpenNpm}
             onUpgrade={onUpgrade}
+            onUninstall={onUninstall}
           />
         </>
       )}

@@ -11,6 +11,7 @@ import type {
 import { useScanProgress } from '../hooks/useScanProgress';
 import { deriveMainWindowBlockingOperation } from '../utils/deriveMainWindowBlockingOperation';
 import { BlockingOverlay } from './BlockingOverlay';
+import { ConfirmDialog } from './ConfirmDialog';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { GlobalPipModulesSection } from './GlobalPipModulesSection';
@@ -20,6 +21,12 @@ import { getLastScanAt, isScanStale } from '../utils/scanStaleness';
 
 const secondaryButtonClass =
   'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900/50 px-3.5 py-2 text-sm font-medium leading-none text-zinc-200 whitespace-nowrap transition hover:border-cyan-500/80 hover:bg-zinc-900 hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-60';
+
+type PendingUninstall = {
+  ecosystem: 'npm' | 'pip';
+  packageName: string;
+  command: string;
+};
 
 export const App = () => {
   const { progress: scanProgress, runWithProgress } = useScanProgress();
@@ -34,11 +41,14 @@ export const App = () => {
   const [globalNpmReport, setGlobalNpmReport] = useState<GlobalNpmModulesReport | null>(null);
   const [isScanningGlobalNpm, setIsScanningGlobalNpm] = useState(false);
   const [upgradingNpmPackage, setUpgradingNpmPackage] = useState<string | null>(null);
+  const [uninstallingNpmPackage, setUninstallingNpmPackage] = useState<string | null>(null);
   const [globalNpmError, setGlobalNpmError] = useState<string | null>(null);
   const [globalPipReport, setGlobalPipReport] = useState<GlobalPipModulesReport | null>(null);
   const [isScanningGlobalPip, setIsScanningGlobalPip] = useState(false);
   const [upgradingPipPackage, setUpgradingPipPackage] = useState<string | null>(null);
+  const [uninstallingPipPackage, setUninstallingPipPackage] = useState<string | null>(null);
   const [globalPipError, setGlobalPipError] = useState<string | null>(null);
+  const [pendingUninstall, setPendingUninstall] = useState<PendingUninstall | null>(null);
 
   const nodeEntry = software.find((item) => item.kind === 'nodejs');
   const showGlobalNpm = Boolean(
@@ -59,7 +69,10 @@ export const App = () => {
     isScanningGlobalNpm ||
     isScanningGlobalPip ||
     upgradingNpmPackage !== null ||
-    upgradingPipPackage !== null;
+    upgradingPipPackage !== null ||
+    uninstallingNpmPackage !== null ||
+    uninstallingPipPackage !== null ||
+    pendingUninstall !== null;
 
   const scanGlobalNpm = useCallback(async () => {
     setIsScanningGlobalNpm(true);
@@ -217,6 +230,22 @@ export const App = () => {
     }
   };
 
+  const uninstallGlobalNpmModule = async (packageName: string) => {
+    setUninstallingNpmPackage(packageName);
+    setGlobalNpmError(null);
+
+    try {
+      const report = await runWithProgress(() =>
+        window.versionTracker.uninstallGlobalNpmModule(packageName),
+      );
+      setGlobalNpmReport(report);
+    } catch {
+      setGlobalNpmError(`Unable to uninstall ${packageName}.`);
+    } finally {
+      setUninstallingNpmPackage(null);
+    }
+  };
+
   const openPipPackage = async (packageName: string) => {
     setGlobalPipError(null);
 
@@ -243,6 +272,55 @@ export const App = () => {
     }
   };
 
+  const uninstallGlobalPipModule = async (packageName: string) => {
+    setUninstallingPipPackage(packageName);
+    setGlobalPipError(null);
+
+    try {
+      const report = await runWithProgress(() =>
+        window.versionTracker.uninstallGlobalPipModule(packageName),
+      );
+      setGlobalPipReport(report);
+    } catch {
+      setGlobalPipError(`Unable to uninstall ${packageName}.`);
+    } finally {
+      setUninstallingPipPackage(null);
+    }
+  };
+
+  const requestUninstallNpmModule = (packageName: string) => {
+    setPendingUninstall({
+      ecosystem: 'npm',
+      packageName,
+      command: `npm uninstall -g ${packageName}`,
+    });
+  };
+
+  const requestUninstallPipModule = (packageName: string) => {
+    const pythonPipInvoke = globalPipReport?.pythonPipInvoke ?? 'python -m pip';
+    setPendingUninstall({
+      ecosystem: 'pip',
+      packageName,
+      command: `${pythonPipInvoke} -m pip uninstall -y ${packageName}`,
+    });
+  };
+
+  const confirmPendingUninstall = () => {
+    if (!pendingUninstall) {
+      return;
+    }
+
+    const { ecosystem, packageName } = pendingUninstall;
+    setPendingUninstall(null);
+
+    if (ecosystem === 'npm') {
+      void uninstallGlobalNpmModule(packageName);
+      return;
+    }
+
+    void uninstallGlobalPipModule(packageName);
+  };
+
   const openPipDependencyAnalyzer = async () => {
     setIsOpeningPipDeps(true);
     setError(null);
@@ -264,6 +342,8 @@ export const App = () => {
       deriveMainWindowBlockingOperation({
         upgradingNpmPackage,
         upgradingPipPackage,
+        uninstallingNpmPackage,
+        uninstallingPipPackage,
         isScanningGlobalNpm,
         isScanningGlobalPip,
         isScanning,
@@ -276,6 +356,8 @@ export const App = () => {
     [
       upgradingNpmPackage,
       upgradingPipPackage,
+      uninstallingNpmPackage,
+      uninstallingPipPackage,
       isScanningGlobalNpm,
       isScanningGlobalPip,
       isScanning,
@@ -386,15 +468,17 @@ export const App = () => {
           <GlobalNpmModulesSection
             report={globalNpmReport}
             isScanning={isScanningGlobalNpm}
-            isUpgrading={upgradingNpmPackage !== null}
+            isMutating={upgradingNpmPackage !== null || uninstallingNpmPackage !== null}
             scanProgress={globalNpmScanProgress}
             showInlineProgress={!blockingOperation}
             isBusy={isBusy}
             upgradingPackage={upgradingNpmPackage}
+            uninstallingPackage={uninstallingNpmPackage}
             sectionError={globalNpmError}
             onScan={() => void scanGlobalNpm()}
             onOpenNpm={openNpmPackage}
             onUpgrade={upgradeGlobalNpmModule}
+            onUninstall={requestUninstallNpmModule}
           />
         )}
 
@@ -402,18 +486,34 @@ export const App = () => {
           <GlobalPipModulesSection
             report={globalPipReport}
             isScanning={isScanningGlobalPip}
-            isUpgrading={upgradingPipPackage !== null}
+            isMutating={upgradingPipPackage !== null || uninstallingPipPackage !== null}
             scanProgress={globalPipScanProgress}
             showInlineProgress={!blockingOperation}
             isBusy={isBusy}
             upgradingPackage={upgradingPipPackage}
+            uninstallingPackage={uninstallingPipPackage}
             sectionError={globalPipError}
             onScan={() => void scanGlobalPip()}
             onOpenPip={openPipPackage}
             onUpgrade={upgradeGlobalPipModule}
+            onUninstall={requestUninstallPipModule}
           />
         )}
       </div>
+      <ConfirmDialog
+        open={pendingUninstall !== null}
+        title={
+          pendingUninstall ? `Uninstall ${pendingUninstall.packageName}?` : ''
+        }
+        description={
+          pendingUninstall
+            ? `This will run: ${pendingUninstall.command}`
+            : ''
+        }
+        onConfirm={confirmPendingUninstall}
+        onCancel={() => setPendingUninstall(null)}
+        isDestructive
+      />
       <BlockingOverlay operation={blockingOperation} />
     </main>
   );

@@ -47,11 +47,13 @@ declare global {
       ) => Promise<{ filePath: string }>;
       scanGlobalNpmModules: () => Promise<GlobalNpmModulesReport>;
       upgradeGlobalNpmModule: (packageName: string) => Promise<GlobalNpmModulesReport>;
+      uninstallGlobalNpmModule: (packageName: string) => Promise<GlobalNpmModulesReport>;
       scanGlobalPipModules: () => Promise<GlobalPipModulesReport>;
       upgradeGlobalPipModule: (
         packageName: string,
         target: GlobalPipUpgradeTarget,
       ) => Promise<GlobalPipModulesReport>;
+      uninstallGlobalPipModule: (packageName: string) => Promise<GlobalPipModulesReport>;
       openPipPackage: (packageName: string) => Promise<void>;
     };
   }

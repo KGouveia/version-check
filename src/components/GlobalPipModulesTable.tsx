@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronsUp, Download } from 'lucide-react';
+import { ArrowUp, ChevronsUp, Download, Trash2 } from 'lucide-react';
 import type { GlobalPipModule, GlobalPipUpgradeTarget } from '../types';
 import {
   canUpgradeGlobalPipModuleTo,
@@ -13,8 +13,10 @@ interface GlobalPipModulesTableProps {
   pythonPipInvoke: string;
   isBusy: boolean;
   upgradingPackage: string | null;
+  uninstallingPackage: string | null;
   onOpenPip: (packageName: string) => Promise<void>;
   onUpgrade: (packageName: string, target: GlobalPipUpgradeTarget) => Promise<void>;
+  onUninstall: (packageName: string) => void;
 }
 
 const formatDate = (date: string | null) => {
@@ -50,13 +52,18 @@ const tryResolveUpgradeSpec = (
 const actionButtonClass =
   'inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-40';
 
+const uninstallButtonClass =
+  'inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-red-500/80 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40';
+
 export const GlobalPipModulesTable = ({
   modules,
   pythonPipInvoke,
   isBusy,
   upgradingPackage,
+  uninstallingPackage,
   onOpenPip,
   onUpgrade,
+  onUninstall,
 }: GlobalPipModulesTableProps) => {
   if (modules.length === 0) {
     return (
@@ -77,7 +84,7 @@ export const GlobalPipModulesTable = ({
           <col className="w-[10%]" />
           <col className="w-[12%]" />
           <col className="w-[12%]" />
-          <col className="w-[10%]" />
+          <col className="w-[12%]" />
         </colgroup>
         <thead className="border-b border-zinc-800 bg-zinc-900/70 text-xs uppercase tracking-wide text-zinc-500">
           <tr>
@@ -109,6 +116,7 @@ export const GlobalPipModulesTable = ({
             const majorSpec = majorUpgradeEnabled ? tryResolveUpgradeSpec(item, 'major') : null;
 
             const isUpgrading = upgradingPackage === item.name;
+            const isUninstalling = uninstallingPackage === item.name;
 
             return (
               <tr key={item.id} className="bg-zinc-950/80">
@@ -205,6 +213,24 @@ export const GlobalPipModulesTable = ({
                       <ChevronsUp
                         size={14}
                         className={isUpgrading ? 'animate-pulse' : ''}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      className={uninstallButtonClass}
+                      onClick={() => onUninstall(item.name)}
+                      disabled={isBusy}
+                      title={`Uninstall ${item.name} (${pythonPipInvoke} -m pip uninstall -y ${item.name})`}
+                      aria-label={
+                        isUninstalling
+                          ? `Uninstalling ${item.name}`
+                          : `Uninstall ${item.name}`
+                      }
+                    >
+                      <Trash2
+                        size={14}
+                        className={isUninstalling ? 'animate-pulse' : ''}
                         aria-hidden="true"
                       />
                     </button>

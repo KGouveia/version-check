@@ -44,6 +44,7 @@ import {
 } from './services/globalNpmUpgradePolicy';
 import {
   refreshGlobalPipModulesAfterUpgrade,
+  refreshGlobalPipModulesAfterUninstall,
   scanGlobalPipModules,
 } from './services/globalPipVersionCheck';
 import {
@@ -51,7 +52,9 @@ import {
   resolveGlobalPipUpgradeSpec,
 } from './services/globalPipUpgradePolicy';
 import { upgradeGlobalNpmPackage } from './services/npmGlobalUpgrade';
+import { uninstallGlobalNpmPackage } from './services/npmGlobalUninstall';
 import { upgradeGlobalPipPackage } from './services/pipGlobalUpgrade';
+import { uninstallGlobalPipPackage } from './services/pipGlobalUninstall';
 import { isValidNpmPackageName } from './constants/npmPackageName';
 import { isValidPypiPackageName } from './constants/pypiPackageName';
 import { npmPackagePageUrl } from './services/npmRegistry';
@@ -647,6 +650,30 @@ const registerIpcHandlers = () => {
     },
   );
 
+  ipcMain.handle(
+    'global-npm:uninstall',
+    async (event, packageName: string): Promise<GlobalNpmModulesReport> => {
+      if (typeof packageName !== 'string' || !isValidNpmPackageName(packageName)) {
+        throw new Error('Invalid npm package name.');
+      }
+
+      const trimmed = packageName.trim();
+      const moduleEntry = lastGlobalNpmReport?.modules.find(
+        (module) => module.name === trimmed,
+      );
+
+      if (!moduleEntry || !lastGlobalNpmReport) {
+        throw new Error('Package is not in the current global npm scan.');
+      }
+
+      await uninstallGlobalNpmPackage(trimmed);
+
+      const report = await scanGlobalNpmModules(createScanProgressReporter(event));
+      lastGlobalNpmReport = report;
+      return report;
+    },
+  );
+
   ipcMain.handle('global-pip:scan', async (event): Promise<GlobalPipModulesReport> => {
     const report = await scanGlobalPipModules(createScanProgressReporter(event));
     lastGlobalPipReport = report;
@@ -689,6 +716,40 @@ const registerIpcHandlers = () => {
         report = await refreshGlobalPipModulesAfterUpgrade(
           lastGlobalPipReport!,
           trimmed,
+          createScanProgressReporter(event),
+        );
+      } catch {
+        report = await scanGlobalPipModules(createScanProgressReporter(event));
+      }
+
+      lastGlobalPipReport = report;
+      return report;
+    },
+  );
+
+  ipcMain.handle(
+    'global-pip:uninstall',
+    async (event, packageName: string): Promise<GlobalPipModulesReport> => {
+      if (typeof packageName !== 'string' || !isValidPypiPackageName(packageName)) {
+        throw new Error('Invalid PyPI package name.');
+      }
+
+      const trimmed = packageName.trim();
+      const moduleEntry = lastGlobalPipReport?.modules.find(
+        (module) => module.name === trimmed,
+      );
+
+      if (!moduleEntry || !lastGlobalPipReport) {
+        throw new Error('Package is not in the current pip environment scan.');
+      }
+
+      await uninstallGlobalPipPackage(trimmed);
+
+      let report: GlobalPipModulesReport;
+
+      try {
+        report = await refreshGlobalPipModulesAfterUninstall(
+          lastGlobalPipReport,
           createScanProgressReporter(event),
         );
       } catch {

@@ -81,6 +81,7 @@ Shown when Node.js is monitored and `node -v` succeeded. **Does not scan until t
 |----------------|-------------|--------|
 | `scanGlobalNpmModules` | `global-npm:scan` | `npm list -g --depth=0` + registry version checks |
 | `upgradeGlobalNpmModule` | `global-npm:upgrade` | `npm install -g <name>@latest`; package must be in last scan |
+| `uninstallGlobalNpmModule` | `global-npm:uninstall` | `npm uninstall -g <name>`; package must be in last scan; renderer confirmation dialog; full rescan |
 
 ### Global pip (main window)
 
@@ -90,6 +91,7 @@ Shown when Python is monitored and version check succeeded. **Does not scan unti
 |----------------|-------------|--------|
 | `scanGlobalPipModules` | `global-pip:scan` | `pip list` + pip index version checks |
 | `upgradeGlobalPipModule` | `global-pip:upgrade` | `pip install --upgrade <name>==<version>`; package must be in last scan; then **partial refresh** (upgraded package + transitive deps + version-changed/new packages) with fallback to full rescan |
+| `uninstallGlobalPipModule` | `global-pip:uninstall` | `pip uninstall -y <name>`; package must be in last scan; renderer confirmation dialog; then **partial refresh** (new or version-changed packages only) with fallback to full rescan |
 | `openPipPackage` | `global-pip:open-package` | Validates package name; opens `https://pypi.org/project/` only |
 
 ### npm (`package.json`)

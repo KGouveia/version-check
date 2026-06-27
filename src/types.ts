@@ -7,6 +7,7 @@ export interface ScanProgress {
 
 export type BlockingOperationKind =
   | 'upgrade'
+  | 'uninstall'
   | 'scan'
   | 'rescan-all'
   | 'open-analyzer'

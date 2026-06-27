@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('global-npm:scan'),
   upgradeGlobalNpmModule: (packageName: string): Promise<GlobalNpmModulesReport> =>
     ipcRenderer.invoke('global-npm:upgrade', packageName),
+  uninstallGlobalNpmModule: (packageName: string): Promise<GlobalNpmModulesReport> =>
+    ipcRenderer.invoke('global-npm:uninstall', packageName),
   scanGlobalPipModules: (): Promise<GlobalPipModulesReport> =>
     ipcRenderer.invoke('global-pip:scan'),
   upgradeGlobalPipModule: (
@@ -81,6 +83,8 @@ contextBridge.exposeInMainWorld('versionTracker', {
     target: GlobalPipUpgradeTarget,
   ): Promise<GlobalPipModulesReport> =>
     ipcRenderer.invoke('global-pip:upgrade', packageName, target),
+  uninstallGlobalPipModule: (packageName: string): Promise<GlobalPipModulesReport> =>
+    ipcRenderer.invoke('global-pip:uninstall', packageName),
   openPipPackage: (packageName: string): Promise<void> =>
     ipcRenderer.invoke('global-pip:open-package', packageName),
 });

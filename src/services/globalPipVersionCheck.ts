@@ -27,7 +27,25 @@ const buildPreviousByName = (modules: GlobalPipModule[]): Map<string, GlobalPipM
   return map;
 };
 
-const computeRescanNames = async (
+const computeRescanNamesAfterUninstall = (
+  previousReport: GlobalPipModulesReport,
+  installedInputs: Array<{ name: string; installedVersion: string }>,
+): Set<string> => {
+  const rescanNames = new Set<string>();
+  const previousByName = buildPreviousByName(previousReport.modules);
+
+  for (const input of installedInputs) {
+    const previous = previousByName.get(normalizePypiPackageName(input.name));
+
+    if (!previous || previous.installedVersion !== input.installedVersion) {
+      rescanNames.add(input.name);
+    }
+  }
+
+  return rescanNames;
+};
+
+const computeRescanNamesAfterUpgrade = async (
   previousReport: GlobalPipModulesReport,
   upgradedPackageName: string,
   installedByName: Map<string, string>,
@@ -58,22 +76,12 @@ const computeRescanNames = async (
   return rescanNames;
 };
 
-export const refreshGlobalPipModulesAfterUpgrade = async (
+const refreshGlobalPipModulesPartial = async (
   previousReport: GlobalPipModulesReport,
-  upgradedPackageName: string,
+  env: Awaited<ReturnType<typeof listPipPackages>>,
+  rescanNames: Set<string>,
   onProgress?: ScanProgressCallback,
 ): Promise<GlobalPipModulesReport> => {
-  const env = await listPipPackages();
-  const installedByName = buildInstalledNameMap(env.dependencies);
-
-  const rescanNames = await computeRescanNames(
-    previousReport,
-    upgradedPackageName,
-    installedByName,
-    env.dependencies,
-    env.executable,
-  );
-
   const rescanInputs = env.dependencies.filter((dependency) =>
     rescanNames.has(dependency.name),
   );
@@ -114,6 +122,35 @@ export const refreshGlobalPipModulesAfterUpgrade = async (
     pythonVersion: env.pythonVersion,
     vulnerabilityCheckError,
   };
+};
+
+export const refreshGlobalPipModulesAfterUpgrade = async (
+  previousReport: GlobalPipModulesReport,
+  upgradedPackageName: string,
+  onProgress?: ScanProgressCallback,
+): Promise<GlobalPipModulesReport> => {
+  const env = await listPipPackages();
+  const installedByName = buildInstalledNameMap(env.dependencies);
+
+  const rescanNames = await computeRescanNamesAfterUpgrade(
+    previousReport,
+    upgradedPackageName,
+    installedByName,
+    env.dependencies,
+    env.executable,
+  );
+
+  return refreshGlobalPipModulesPartial(previousReport, env, rescanNames, onProgress);
+};
+
+export const refreshGlobalPipModulesAfterUninstall = async (
+  previousReport: GlobalPipModulesReport,
+  onProgress?: ScanProgressCallback,
+): Promise<GlobalPipModulesReport> => {
+  const env = await listPipPackages();
+  const rescanNames = computeRescanNamesAfterUninstall(previousReport, env.dependencies);
+
+  return refreshGlobalPipModulesPartial(previousReport, env, rescanNames, onProgress);
 };
 
 export const scanGlobalPipModules = async (

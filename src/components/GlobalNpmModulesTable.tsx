@@ -1,4 +1,4 @@
-import { ArrowUp, Download } from 'lucide-react';
+import { ArrowUp, Download, Trash2 } from 'lucide-react';
 import type { GlobalNpmModule } from '../types';
 import {
   canUpgradeGlobalNpmModule,
@@ -12,8 +12,10 @@ interface GlobalNpmModulesTableProps {
   modules: GlobalNpmModule[];
   isBusy: boolean;
   upgradingPackage: string | null;
+  uninstallingPackage: string | null;
   onOpenNpm: (packageName: string) => Promise<void>;
   onUpgrade: (packageName: string) => Promise<void>;
+  onUninstall: (packageName: string) => void;
 }
 
 const formatDate = (date: string | null) => {
@@ -39,8 +41,10 @@ export const GlobalNpmModulesTable = ({
   modules,
   isBusy,
   upgradingPackage,
+  uninstallingPackage,
   onOpenNpm,
   onUpgrade,
+  onUninstall,
 }: GlobalNpmModulesTableProps) => {
   if (modules.length === 0) {
     return (
@@ -61,7 +65,7 @@ export const GlobalNpmModulesTable = ({
           <col className="w-[10%]" />
           <col className="w-[12%]" />
           <col className="w-[12%]" />
-          <col className="w-[8%]" />
+          <col className="w-[10%]" />
         </colgroup>
         <thead className="border-b border-zinc-800 bg-zinc-900/70 text-xs uppercase tracking-wide text-zinc-500">
           <tr>
@@ -90,6 +94,7 @@ export const GlobalNpmModulesTable = ({
             const upgradeEnabled = canUpgradeGlobalNpmModule(item);
             const upgradeSpec = upgradeEnabled ? resolveGlobalNpmUpgradeSpec(item) : null;
             const isUpgrading = upgradingPackage === item.name;
+            const isUninstalling = uninstallingPackage === item.name;
 
             return (
               <tr key={item.id} className="bg-zinc-950/80">
@@ -164,6 +169,24 @@ export const GlobalNpmModulesTable = ({
                       <ArrowUp
                         size={14}
                         className={isUpgrading ? 'animate-pulse' : ''}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-red-500/80 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => onUninstall(item.name)}
+                      disabled={isBusy}
+                      title={`Uninstall ${item.name} (npm uninstall -g ${item.name})`}
+                      aria-label={
+                        isUninstalling
+                          ? `Uninstalling ${item.name}`
+                          : `Uninstall ${item.name}`
+                      }
+                    >
+                      <Trash2
+                        size={14}
+                        className={isUninstalling ? 'animate-pulse' : ''}
                         aria-hidden="true"
                       />
                     </button>
