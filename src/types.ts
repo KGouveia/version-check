@@ -176,6 +176,8 @@ export interface GlobalNpmModulesReport {
 /** Same shape as analyzed pip rows; used for the main-window environment scan. */
 export type GlobalPipModule = AnalyzedPipDependency;
 
+export type GlobalPipUpgradeTarget = 'minor' | 'major';
+
 export interface GlobalPipModulesReport {
   modules: GlobalPipModule[];
   scannedAt: string;

@@ -4,6 +4,7 @@ import type {
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
   GlobalPipModulesReport,
+  GlobalPipUpgradeTarget,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   ScanProgress,
@@ -75,8 +76,11 @@ contextBridge.exposeInMainWorld('versionTracker', {
     ipcRenderer.invoke('global-npm:upgrade', packageName),
   scanGlobalPipModules: (): Promise<GlobalPipModulesReport> =>
     ipcRenderer.invoke('global-pip:scan'),
-  upgradeGlobalPipModule: (packageName: string): Promise<GlobalPipModulesReport> =>
-    ipcRenderer.invoke('global-pip:upgrade', packageName),
+  upgradeGlobalPipModule: (
+    packageName: string,
+    target: GlobalPipUpgradeTarget,
+  ): Promise<GlobalPipModulesReport> =>
+    ipcRenderer.invoke('global-pip:upgrade', packageName, target),
   openPipPackage: (packageName: string): Promise<void> =>
     ipcRenderer.invoke('global-pip:open-package', packageName),
 });

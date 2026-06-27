@@ -4,6 +4,7 @@ import { SOFTWARE_KIND_LABELS } from '../constants/softwareCatalog';
 import type {
   GlobalNpmModulesReport,
   GlobalPipModulesReport,
+  GlobalPipUpgradeTarget,
   SoftwareKind,
   TrackedSoftware,
 } from '../types';
@@ -226,13 +227,13 @@ export const App = () => {
     }
   };
 
-  const upgradeGlobalPipModule = async (packageName: string) => {
+  const upgradeGlobalPipModule = async (packageName: string, target: GlobalPipUpgradeTarget) => {
     setUpgradingPipPackage(packageName);
     setGlobalPipError(null);
 
     try {
       const report = await runWithProgress(() =>
-        window.versionTracker.upgradeGlobalPipModule(packageName),
+        window.versionTracker.upgradeGlobalPipModule(packageName, target),
       );
       setGlobalPipReport(report);
     } catch {

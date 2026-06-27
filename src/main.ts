@@ -47,7 +47,7 @@ import {
   scanGlobalPipModules,
 } from './services/globalPipVersionCheck';
 import {
-  canUpgradeGlobalPipModule,
+  canUpgradeGlobalPipModuleTo,
   resolveGlobalPipUpgradeSpec,
 } from './services/globalPipUpgradePolicy';
 import { upgradeGlobalNpmPackage } from './services/npmGlobalUpgrade';
@@ -63,6 +63,7 @@ import type {
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
   GlobalPipModulesReport,
+  GlobalPipUpgradeTarget,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   ScanProgress,
@@ -654,9 +655,17 @@ const registerIpcHandlers = () => {
 
   ipcMain.handle(
     'global-pip:upgrade',
-    async (event, packageName: string): Promise<GlobalPipModulesReport> => {
+    async (
+      event,
+      packageName: string,
+      target: GlobalPipUpgradeTarget,
+    ): Promise<GlobalPipModulesReport> => {
       if (typeof packageName !== 'string' || !isValidPypiPackageName(packageName)) {
         throw new Error('Invalid PyPI package name.');
+      }
+
+      if (target !== 'minor' && target !== 'major') {
+        throw new Error('Invalid pip upgrade target.');
       }
 
       const trimmed = packageName.trim();
@@ -668,11 +677,11 @@ const registerIpcHandlers = () => {
         throw new Error('Package is not in the current pip environment scan.');
       }
 
-      if (!canUpgradeGlobalPipModule(moduleEntry)) {
+      if (!canUpgradeGlobalPipModuleTo(moduleEntry, target)) {
         throw new Error('No upgrade is available for this package.');
       }
 
-      await upgradeGlobalPipPackage(trimmed, resolveGlobalPipUpgradeSpec(moduleEntry));
+      await upgradeGlobalPipPackage(trimmed, resolveGlobalPipUpgradeSpec(moduleEntry, target));
 
       let report: GlobalPipModulesReport;
 

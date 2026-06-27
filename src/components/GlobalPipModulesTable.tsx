@@ -1,7 +1,7 @@
-import { ArrowUp, Download } from 'lucide-react';
-import type { GlobalPipModule } from '../types';
+import { ArrowUp, ChevronsUp, Download } from 'lucide-react';
+import type { GlobalPipModule, GlobalPipUpgradeTarget } from '../types';
 import {
-  canUpgradeGlobalPipModule,
+  canUpgradeGlobalPipModuleTo,
   resolveGlobalPipUpgradeSpec,
 } from '../services/globalPipUpgradePolicy';
 import { latestVersionCellToneSimple } from '../services/versionCompareDisplay';
@@ -14,7 +14,7 @@ interface GlobalPipModulesTableProps {
   isBusy: boolean;
   upgradingPackage: string | null;
   onOpenPip: (packageName: string) => Promise<void>;
-  onUpgrade: (packageName: string) => Promise<void>;
+  onUpgrade: (packageName: string, target: GlobalPipUpgradeTarget) => Promise<void>;
 }
 
 const formatDate = (date: string | null) => {
@@ -36,6 +36,20 @@ const toneClass: Record<
   bad: 'text-red-400',
 };
 
+const tryResolveUpgradeSpec = (
+  item: GlobalPipModule,
+  target: GlobalPipUpgradeTarget,
+): string | null => {
+  try {
+    return resolveGlobalPipUpgradeSpec(item, target);
+  } catch {
+    return null;
+  }
+};
+
+const actionButtonClass =
+  'inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-40';
+
 export const GlobalPipModulesTable = ({
   modules,
   pythonPipInvoke,
@@ -56,14 +70,14 @@ export const GlobalPipModulesTable = ({
     <div className="overflow-x-auto">
       <table className="w-full table-fixed border-collapse text-left text-sm">
         <colgroup>
-          <col className="w-[20%]" />
+          <col className="w-[18%]" />
           <col className="w-[10%]" />
           <col className="w-[10%]" />
           <col className="w-[10%]" />
           <col className="w-[10%]" />
           <col className="w-[12%]" />
           <col className="w-[12%]" />
-          <col className="w-[8%]" />
+          <col className="w-[10%]" />
         </colgroup>
         <thead className="border-b border-zinc-800 bg-zinc-900/70 text-xs uppercase tracking-wide text-zinc-500">
           <tr>
@@ -89,16 +103,10 @@ export const GlobalPipModulesTable = ({
               item.compareVersion,
               item.latestVersion,
             );
-            const upgradeEnabled = canUpgradeGlobalPipModule(item);
-            let upgradeSpec: string | null = null;
-
-            if (upgradeEnabled) {
-              try {
-                upgradeSpec = resolveGlobalPipUpgradeSpec(item);
-              } catch {
-                upgradeSpec = null;
-              }
-            }
+            const minorUpgradeEnabled = canUpgradeGlobalPipModuleTo(item, 'minor');
+            const majorUpgradeEnabled = canUpgradeGlobalPipModuleTo(item, 'major');
+            const minorSpec = minorUpgradeEnabled ? tryResolveUpgradeSpec(item, 'minor') : null;
+            const majorSpec = majorUpgradeEnabled ? tryResolveUpgradeSpec(item, 'major') : null;
 
             const isUpgrading = upgradingPackage === item.name;
 
@@ -148,7 +156,7 @@ export const GlobalPipModulesTable = ({
                   <div className="flex justify-end gap-1">
                     <button
                       type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+                      className={actionButtonClass}
                       onClick={() => onOpenPip(item.name)}
                       disabled={isBusy}
                       title="Open PyPI package page"
@@ -158,21 +166,43 @@ export const GlobalPipModulesTable = ({
                     </button>
                     <button
                       type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:border-cyan-500 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
-                      onClick={() => onUpgrade(item.name)}
-                      disabled={isBusy || !upgradeEnabled || !upgradeSpec}
+                      className={actionButtonClass}
+                      onClick={() => onUpgrade(item.name, 'minor')}
+                      disabled={isBusy || !minorSpec}
                       title={
-                        upgradeEnabled && upgradeSpec
-                          ? `Upgrade ${item.name} (${pythonPipInvoke} install --upgrade ${item.name}==${upgradeSpec})`
-                          : 'No upgrade available'
+                        minorSpec
+                          ? `Upgrade ${item.name} to latest minor (${pythonPipInvoke} install --upgrade ${item.name}==${minorSpec})`
+                          : 'No minor upgrade available'
                       }
                       aria-label={
                         isUpgrading
                           ? `Upgrading ${item.name}`
-                          : `Upgrade ${item.name} to latest`
+                          : `Upgrade ${item.name} to latest minor`
                       }
                     >
                       <ArrowUp
+                        size={14}
+                        className={isUpgrading ? 'animate-pulse' : ''}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      className={actionButtonClass}
+                      onClick={() => onUpgrade(item.name, 'major')}
+                      disabled={isBusy || !majorSpec}
+                      title={
+                        majorSpec
+                          ? `Upgrade ${item.name} to latest major (${pythonPipInvoke} install --upgrade ${item.name}==${majorSpec})`
+                          : 'No major upgrade available'
+                      }
+                      aria-label={
+                        isUpgrading
+                          ? `Upgrading ${item.name}`
+                          : `Upgrade ${item.name} to latest major`
+                      }
+                    >
+                      <ChevronsUp
                         size={14}
                         className={isUpgrading ? 'animate-pulse' : ''}
                         aria-hidden="true"

@@ -1,5 +1,5 @@
 import { RefreshCw } from 'lucide-react';
-import type { GlobalPipModulesReport, ScanProgress } from '../types';
+import type { GlobalPipModulesReport, GlobalPipUpgradeTarget, ScanProgress } from '../types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalPipModulesTable } from './GlobalPipModulesTable';
 import { ScanProgressBar } from './ScanProgressBar';
@@ -21,7 +21,7 @@ interface GlobalPipModulesSectionProps {
   sectionError: string | null;
   onScan: () => void;
   onOpenPip: (packageName: string) => Promise<void>;
-  onUpgrade: (packageName: string) => Promise<void>;
+  onUpgrade: (packageName: string, target: GlobalPipUpgradeTarget) => Promise<void>;
 }
 
 export const GlobalPipModulesSection = ({

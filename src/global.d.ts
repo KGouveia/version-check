@@ -3,6 +3,7 @@ import type {
   DependencyAnalysisReport,
   GlobalNpmModulesReport,
   GlobalPipModulesReport,
+  GlobalPipUpgradeTarget,
   MavenDependencyAnalysisReport,
   PipDependencyAnalysisReport,
   ScanProgress,
@@ -47,7 +48,10 @@ declare global {
       scanGlobalNpmModules: () => Promise<GlobalNpmModulesReport>;
       upgradeGlobalNpmModule: (packageName: string) => Promise<GlobalNpmModulesReport>;
       scanGlobalPipModules: () => Promise<GlobalPipModulesReport>;
-      upgradeGlobalPipModule: (packageName: string) => Promise<GlobalPipModulesReport>;
+      upgradeGlobalPipModule: (
+        packageName: string,
+        target: GlobalPipUpgradeTarget,
+      ) => Promise<GlobalPipModulesReport>;
       openPipPackage: (packageName: string) => Promise<void>;
     };
   }
