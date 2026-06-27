@@ -42,7 +42,10 @@ import {
   canUpgradeGlobalNpmModule,
   resolveGlobalNpmUpgradeSpec,
 } from './services/globalNpmUpgradePolicy';
-import { scanGlobalPipModules } from './services/globalPipVersionCheck';
+import {
+  refreshGlobalPipModulesAfterUpgrade,
+  scanGlobalPipModules,
+} from './services/globalPipVersionCheck';
 import {
   canUpgradeGlobalPipModule,
   resolveGlobalPipUpgradeSpec,
@@ -671,7 +674,18 @@ const registerIpcHandlers = () => {
 
       await upgradeGlobalPipPackage(trimmed, resolveGlobalPipUpgradeSpec(moduleEntry));
 
-      const report = await scanGlobalPipModules(createScanProgressReporter(event));
+      let report: GlobalPipModulesReport;
+
+      try {
+        report = await refreshGlobalPipModulesAfterUpgrade(
+          lastGlobalPipReport!,
+          trimmed,
+          createScanProgressReporter(event),
+        );
+      } catch {
+        report = await scanGlobalPipModules(createScanProgressReporter(event));
+      }
+
       lastGlobalPipReport = report;
       return report;
     },

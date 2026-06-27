@@ -84,12 +84,12 @@ Shown when Node.js is monitored and `node -v` succeeded. **Does not scan until t
 
 ### Global pip (main window)
 
-Shown when Python is monitored and version check succeeded. **Does not scan until the user clicks Scan** (then Rescan). Lists packages from `pip list` on the resolved default Python (same environment as the pip analyzer). Reports are held in main-process memory (`lastGlobalPipReport`) for upgrade allowlisting.
+Shown when Python is monitored and version check succeeded. **Does not scan until the user clicks Scan** (then Rescan). Lists packages from `pip list` on the resolved default Python (same environment as the pip analyzer). Reports are held in main-process memory (`lastGlobalPipReport`) for upgrade allowlisting. After **Upgrade**, the app re-lists the environment and only re-checks index versions and OSV for the upgraded package, its transitive dependencies, and any newly installed or version-changed packages; manual Rescan still checks everything.
 
 | Preload method | IPC channel | Notes |
 |----------------|-------------|--------|
 | `scanGlobalPipModules` | `global-pip:scan` | `pip list` + pip index version checks |
-| `upgradeGlobalPipModule` | `global-pip:upgrade` | `pip install --upgrade <name>==<version>`; package must be in last scan |
+| `upgradeGlobalPipModule` | `global-pip:upgrade` | `pip install --upgrade <name>==<version>`; package must be in last scan; then **partial refresh** (upgraded package + transitive deps + version-changed/new packages) with fallback to full rescan |
 | `openPipPackage` | `global-pip:open-package` | Validates package name; opens `https://pypi.org/project/` only |
 
 ### npm (`package.json`)

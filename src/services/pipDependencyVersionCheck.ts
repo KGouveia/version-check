@@ -56,6 +56,30 @@ const analyzeOne = async (
   };
 };
 
+export const analyzePipDependencyInputs = async (
+  inputs: PipDependencyInput[],
+  executable: ResolvedPythonExecutable,
+  onProgress?: ScanProgressCallback,
+): Promise<{
+  dependencies: AnalyzedPipDependency[];
+  vulnerabilityCheckError: string | null;
+}> => {
+  const dependencies = await mapWithConcurrency(
+    inputs,
+    REGISTRY_CONCURRENCY,
+    (input) => analyzeOne(input, executable),
+    onProgress,
+  );
+
+  const { items: dependenciesWithVulns, error: vulnerabilityCheckError } =
+    await attachOsvPypiVulnerabilityCounts(dependencies, (dep) => dep.installedVersion);
+
+  return {
+    dependencies: dependenciesWithVulns,
+    vulnerabilityCheckError,
+  };
+};
+
 export const analyzePipDependencies = async (
   pythonCommand: string,
   pythonPipInvoke: string,
@@ -66,22 +90,18 @@ export const analyzePipDependencies = async (
   onProgress?: ScanProgressCallback,
 ): Promise<PipDependencyAnalysisReport> => {
   const resolved = executable ?? (await resolvePythonExecutable());
-  const dependencies = await mapWithConcurrency(
+  const { dependencies, vulnerabilityCheckError } = await analyzePipDependencyInputs(
     inputs,
-    REGISTRY_CONCURRENCY,
-    (input) => analyzeOne(input, resolved),
+    resolved,
     onProgress,
   );
-
-  const { items: dependenciesWithVulns, error: vulnerabilityCheckError } =
-    await attachOsvPypiVulnerabilityCounts(dependencies, (dep) => dep.installedVersion);
 
   return {
     pythonCommand,
     pythonPipInvoke,
     pythonVersion,
     projectLabel,
-    dependencies: dependenciesWithVulns,
+    dependencies,
     analyzedAt: new Date().toISOString(),
     vulnerabilityCheckError,
   };
