@@ -8,6 +8,7 @@ interface CollapsibleSectionProps {
   actions?: ReactNode;
   errorBanner?: ReactNode;
   className?: string;
+  disabled?: boolean;
   children: ReactNode;
 }
 
@@ -15,7 +16,10 @@ const sectionClass =
   'overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-950 shadow-xl shadow-black/30';
 
 const toggleButtonClass =
-  'inline-flex min-w-0 items-center gap-2 rounded-md text-left transition hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500';
+  'inline-flex min-w-0 items-center gap-2 rounded-md text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500';
+
+const toggleButtonEnabledClass = `${toggleButtonClass} hover:text-cyan-300`;
+const toggleButtonDisabledClass = `${toggleButtonClass} cursor-not-allowed opacity-60`;
 
 export const CollapsibleSection = ({
   title,
@@ -24,6 +28,7 @@ export const CollapsibleSection = ({
   actions,
   errorBanner,
   className = '',
+  disabled = false,
   children,
 }: CollapsibleSectionProps) => {
   const [open, setOpen] = useState(true);
@@ -37,7 +42,8 @@ export const CollapsibleSection = ({
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-controls={panelId}
-          className={toggleButtonClass}
+          disabled={disabled}
+          className={disabled ? toggleButtonDisabledClass : toggleButtonEnabledClass}
         >
           <ChevronDown
             size={16}

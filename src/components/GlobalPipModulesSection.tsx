@@ -13,7 +13,9 @@ const errorBannerClass =
 interface GlobalPipModulesSectionProps {
   report: GlobalPipModulesReport | null;
   isScanning: boolean;
+  isUpgrading: boolean;
   scanProgress: ScanProgress | null;
+  showInlineProgress: boolean;
   isBusy: boolean;
   upgradingPackage: string | null;
   sectionError: string | null;
@@ -25,7 +27,9 @@ interface GlobalPipModulesSectionProps {
 export const GlobalPipModulesSection = ({
   report,
   isScanning,
+  isUpgrading,
   scanProgress,
+  showInlineProgress,
   isBusy,
   upgradingPackage,
   sectionError,
@@ -34,6 +38,8 @@ export const GlobalPipModulesSection = ({
   onUpgrade,
 }: GlobalPipModulesSectionProps) => {
   const scanLabel = report ? 'Rescan' : 'Scan';
+  const scanButtonLabel = isUpgrading ? 'Upgrading…' : isScanning ? 'Scanning…' : scanLabel;
+  const scanButtonBusy = isScanning || isUpgrading;
 
   const errorBanner =
     sectionError || report?.listError || report?.vulnerabilityCheckError ? (
@@ -54,6 +60,7 @@ export const GlobalPipModulesSection = ({
     <CollapsibleSection
       className="mt-6"
       title="Pip packages (Python environment)"
+      disabled={isBusy}
       subtitle={
         report?.pythonVersion ? (
           <p className="mt-0.5 text-xs text-zinc-500">Python {report.pythonVersion}</p>
@@ -63,21 +70,21 @@ export const GlobalPipModulesSection = ({
         <button
           type="button"
           onClick={onScan}
-          disabled={isBusy || isScanning}
+          disabled={isBusy || isScanning || isUpgrading}
           className={secondaryButtonClass}
           title="List pip packages in the monitored Python environment and check index versions and OSV vulnerabilities"
         >
           <RefreshCw
             size={16}
-            className={`shrink-0 ${isScanning ? 'animate-spin' : ''}`}
+            className={`shrink-0 ${scanButtonBusy ? 'animate-spin' : ''}`}
             aria-hidden="true"
           />
-          {isScanning ? 'Scanning…' : scanLabel}
+          {scanButtonLabel}
         </button>
       }
       errorBanner={errorBanner}
     >
-      {isScanning && scanProgress && !report ? (
+      {isScanning && scanProgress && !report && showInlineProgress ? (
         <ScanProgressBar progress={scanProgress} itemLabel="packages" />
       ) : isScanning && !report ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
@@ -89,7 +96,7 @@ export const GlobalPipModulesSection = ({
         </div>
       ) : (
         <>
-          {isScanning && scanProgress && (
+          {isScanning && scanProgress && showInlineProgress && (
             <ScanProgressBar progress={scanProgress} itemLabel="packages" />
           )}
           <GlobalPipModulesTable

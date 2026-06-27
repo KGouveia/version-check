@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FileDown, FileSearch, RefreshCw } from 'lucide-react';
 import { useScanProgress } from '../hooks/useScanProgress';
+import { deriveMavenAnalyzerBlockingOperation } from '../utils/deriveDependencyAnalyzerBlockingOperation';
 import type { MavenDependencyAnalysisReport } from '../types';
+import { BlockingOverlay } from './BlockingOverlay';
 import { MavenDependencyTable } from './MavenDependencyTable';
-import { ScanProgressBar } from './ScanProgressBar';
 
 export const MavenDependencyAnalyzerApp = () => {
   const { progress: scanProgress, runWithProgress } = useScanProgress();
@@ -16,6 +17,17 @@ export const MavenDependencyAnalyzerApp = () => {
   const [isExporting, setIsExporting] = useState(false);
 
   const isBusy = isScanning || isChangingFile || isExporting;
+
+  const blockingOperation = useMemo(
+    () =>
+      deriveMavenAnalyzerBlockingOperation({
+        isScanning,
+        isChangingFile,
+        isExporting,
+        scanProgress,
+      }),
+    [isScanning, isChangingFile, isExporting, scanProgress],
+  );
 
   useEffect(() => {
     window.versionTracker
@@ -98,8 +110,11 @@ export const MavenDependencyAnalyzerApp = () => {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6">
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-100">
+      <div
+        className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6"
+        aria-hidden={blockingOperation ? true : undefined}
+      >
         <header className="mb-6 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-normal text-zinc-50">
@@ -167,10 +182,6 @@ export const MavenDependencyAnalyzerApp = () => {
             </div>
           )}
 
-          {(isScanning || isChangingFile) && scanProgress && (
-            <ScanProgressBar progress={scanProgress} />
-          )}
-
           {isLoading ? (
             <div className="px-6 py-12 text-center text-sm text-zinc-400">
               Loading dependency analysis...
@@ -188,6 +199,7 @@ export const MavenDependencyAnalyzerApp = () => {
           )}
         </section>
       </div>
+      <BlockingOverlay operation={blockingOperation} />
     </main>
   );
 };

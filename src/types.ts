@@ -5,6 +5,23 @@ export interface ScanProgress {
   total: number;
 }
 
+export type BlockingOperationKind =
+  | 'upgrade'
+  | 'scan'
+  | 'rescan-all'
+  | 'open-analyzer'
+  | 'toggle-software'
+  | 'export';
+
+export interface BlockingOperation {
+  kind: BlockingOperationKind;
+  title: string;
+  subtitle?: string;
+  progress?: ScanProgress | null;
+  /** Label for ScanProgressBar item counts (e.g. "modules", "packages"). */
+  progressItemLabel?: string;
+}
+
 export type VersionStatus =
   | 'unknown'
   | 'up-to-date'

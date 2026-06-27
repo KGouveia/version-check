@@ -13,7 +13,9 @@ const errorBannerClass =
 interface GlobalNpmModulesSectionProps {
   report: GlobalNpmModulesReport | null;
   isScanning: boolean;
+  isUpgrading: boolean;
   scanProgress: ScanProgress | null;
+  showInlineProgress: boolean;
   isBusy: boolean;
   upgradingPackage: string | null;
   sectionError: string | null;
@@ -25,7 +27,9 @@ interface GlobalNpmModulesSectionProps {
 export const GlobalNpmModulesSection = ({
   report,
   isScanning,
+  isUpgrading,
   scanProgress,
+  showInlineProgress,
   isBusy,
   upgradingPackage,
   sectionError,
@@ -34,6 +38,8 @@ export const GlobalNpmModulesSection = ({
   onUpgrade,
 }: GlobalNpmModulesSectionProps) => {
   const scanLabel = report ? 'Rescan' : 'Scan';
+  const scanButtonLabel = isUpgrading ? 'Upgrading…' : isScanning ? 'Scanning…' : scanLabel;
+  const scanButtonBusy = isScanning || isUpgrading;
 
   const errorBanner =
     sectionError || report?.listError || report?.vulnerabilityCheckError ? (
@@ -54,25 +60,26 @@ export const GlobalNpmModulesSection = ({
     <CollapsibleSection
       className="mt-6"
       title="Global npm modules"
+      disabled={isBusy}
       actions={
         <button
           type="button"
           onClick={onScan}
-          disabled={isBusy || isScanning}
+          disabled={isBusy || isScanning || isUpgrading}
           className={secondaryButtonClass}
           title="List global npm packages and check registry versions and OSV vulnerabilities"
         >
           <RefreshCw
             size={16}
-            className={`shrink-0 ${isScanning ? 'animate-spin' : ''}`}
+            className={`shrink-0 ${scanButtonBusy ? 'animate-spin' : ''}`}
             aria-hidden="true"
           />
-          {isScanning ? 'Scanning…' : scanLabel}
+          {scanButtonLabel}
         </button>
       }
       errorBanner={errorBanner}
     >
-      {isScanning && scanProgress && !report ? (
+      {isScanning && scanProgress && !report && showInlineProgress ? (
         <ScanProgressBar progress={scanProgress} itemLabel="modules" />
       ) : isScanning && !report ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
@@ -84,7 +91,7 @@ export const GlobalNpmModulesSection = ({
         </div>
       ) : (
         <>
-          {isScanning && scanProgress && (
+          {isScanning && scanProgress && showInlineProgress && (
             <ScanProgressBar progress={scanProgress} itemLabel="modules" />
           )}
           <GlobalNpmModulesTable

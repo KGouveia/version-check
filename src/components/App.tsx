@@ -8,10 +8,11 @@ import type {
   TrackedSoftware,
 } from '../types';
 import { useScanProgress } from '../hooks/useScanProgress';
+import { deriveMainWindowBlockingOperation } from '../utils/deriveMainWindowBlockingOperation';
+import { BlockingOverlay } from './BlockingOverlay';
 import { CollapsibleSection } from './CollapsibleSection';
 import { GlobalNpmModulesSection } from './GlobalNpmModulesSection';
 import { GlobalPipModulesSection } from './GlobalPipModulesSection';
-import { ScanProgressBar } from './ScanProgressBar';
 import { SoftwareTable } from './SoftwareTable';
 import { formatDateTime } from '../utils/formatDateTime';
 import { getLastScanAt, isScanStale } from '../utils/scanStaleness';
@@ -254,19 +255,46 @@ export const App = () => {
     }
   };
 
-  const isOpeningAnalyzer = isOpeningDeps || isOpeningMavenDeps || isOpeningPipDeps;
-  const globalNpmScanProgress =
-    isScanningGlobalNpm || upgradingNpmPackage !== null ? scanProgress : null;
-  const globalPipScanProgress =
-    isScanningGlobalPip || upgradingPipPackage !== null ? scanProgress : null;
-  const analyzerOpenProgress = isOpeningAnalyzer ? scanProgress : null;
+  const globalNpmScanProgress = isScanningGlobalNpm ? scanProgress : null;
+  const globalPipScanProgress = isScanningGlobalPip ? scanProgress : null;
+
+  const blockingOperation = useMemo(
+    () =>
+      deriveMainWindowBlockingOperation({
+        upgradingNpmPackage,
+        upgradingPipPackage,
+        isScanningGlobalNpm,
+        isScanningGlobalPip,
+        isScanning,
+        isOpeningDeps,
+        isOpeningMavenDeps,
+        isOpeningPipDeps,
+        togglingKind,
+        scanProgress: scanProgress,
+      }),
+    [
+      upgradingNpmPackage,
+      upgradingPipPackage,
+      isScanningGlobalNpm,
+      isScanningGlobalPip,
+      isScanning,
+      isOpeningDeps,
+      isOpeningMavenDeps,
+      isOpeningPipDeps,
+      togglingKind,
+      scanProgress,
+    ],
+  );
 
   const lastScanAt = useMemo(() => getLastScanAt(software), [software]);
   const lastScanStale = isScanStale(lastScanAt);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6">
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-100">
+      <div
+        className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6"
+        aria-hidden={blockingOperation ? true : undefined}
+      >
         <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
@@ -311,12 +339,9 @@ export const App = () => {
           </div>
         </header>
 
-        {analyzerOpenProgress && (
-          <ScanProgressBar progress={analyzerOpenProgress} className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950" />
-        )}
-
         <CollapsibleSection
           title="Monitored software"
+          disabled={isBusy}
           headerMeta={
             <span className={lastScanStale ? 'text-red-400' : 'text-zinc-500'}>
               Last scan: {formatDateTime(lastScanAt)}
@@ -359,8 +384,10 @@ export const App = () => {
         {showGlobalNpm && (
           <GlobalNpmModulesSection
             report={globalNpmReport}
-            isScanning={isScanningGlobalNpm || upgradingNpmPackage !== null}
+            isScanning={isScanningGlobalNpm}
+            isUpgrading={upgradingNpmPackage !== null}
             scanProgress={globalNpmScanProgress}
+            showInlineProgress={!blockingOperation}
             isBusy={isBusy}
             upgradingPackage={upgradingNpmPackage}
             sectionError={globalNpmError}
@@ -373,8 +400,10 @@ export const App = () => {
         {showGlobalPip && (
           <GlobalPipModulesSection
             report={globalPipReport}
-            isScanning={isScanningGlobalPip || upgradingPipPackage !== null}
+            isScanning={isScanningGlobalPip}
+            isUpgrading={upgradingPipPackage !== null}
             scanProgress={globalPipScanProgress}
+            showInlineProgress={!blockingOperation}
             isBusy={isBusy}
             upgradingPackage={upgradingPipPackage}
             sectionError={globalPipError}
@@ -384,6 +413,7 @@ export const App = () => {
           />
         )}
       </div>
+      <BlockingOverlay operation={blockingOperation} />
     </main>
   );
 };
