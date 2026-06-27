@@ -36,11 +36,16 @@ export const GlobalPipModulesSection = ({
   const scanLabel = report ? 'Rescan' : 'Scan';
 
   const errorBanner =
-    sectionError || (report?.listError && !sectionError) ? (
+    sectionError || report?.listError || report?.vulnerabilityCheckError ? (
       <>
         {sectionError && <div className={errorBannerClass}>{sectionError}</div>}
         {report?.listError && !sectionError && (
           <div className={errorBannerClass}>{report.listError}</div>
+        )}
+        {report?.vulnerabilityCheckError && !sectionError && !report?.listError && (
+          <div className={errorBannerClass}>
+            Vulnerability check failed: {report.vulnerabilityCheckError}
+          </div>
         )}
       </>
     ) : undefined;
@@ -60,7 +65,7 @@ export const GlobalPipModulesSection = ({
           onClick={onScan}
           disabled={isBusy || isScanning}
           className={secondaryButtonClass}
-          title="List pip packages in the monitored Python environment and check index versions"
+          title="List pip packages in the monitored Python environment and check index versions and OSV vulnerabilities"
         >
           <RefreshCw
             size={16}
@@ -80,7 +85,7 @@ export const GlobalPipModulesSection = ({
         </div>
       ) : !report && !isScanning ? (
         <div className="px-6 py-12 text-center text-sm text-zinc-400">
-          Click Scan to list pip packages in this Python environment and check index versions.
+          Click Scan to list pip packages in this Python environment and check index versions and OSV vulnerabilities.
         </div>
       ) : (
         <>

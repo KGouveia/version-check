@@ -7,6 +7,7 @@ import type {
 import { fetchPipIndexVersionInfo } from './pipIndexVersions';
 import { listPipPackages } from './pipList';
 import { mapWithConcurrency, type ScanProgressCallback } from './mapWithConcurrency';
+import { attachOsvPypiVulnerabilityCounts } from './osvPypiVulnerabilities';
 import { inferPipCompareVersion, pypiPackagePageUrl } from './pypiRegistry';
 import { resolvePythonExecutable, type ResolvedPythonExecutable } from './pythonExecutable';
 import { resolveBehindTierForKind } from './versionKindTiers';
@@ -51,6 +52,7 @@ const analyzeOne = async (
     downloadUrl: pypiPackagePageUrl(input.name),
     lastCheckedAt: checkedAt,
     error,
+    vulnerabilityCount: null,
   };
 };
 
@@ -71,13 +73,17 @@ export const analyzePipDependencies = async (
     onProgress,
   );
 
+  const { items: dependenciesWithVulns, error: vulnerabilityCheckError } =
+    await attachOsvPypiVulnerabilityCounts(dependencies, (dep) => dep.installedVersion);
+
   return {
     pythonCommand,
     pythonPipInvoke,
     pythonVersion,
     projectLabel,
-    dependencies,
+    dependencies: dependenciesWithVulns,
     analyzedAt: new Date().toISOString(),
+    vulnerabilityCheckError,
   };
 };
 

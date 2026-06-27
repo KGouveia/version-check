@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { AnalyzedDependency, DependencyAnalysisReport, VersionStatus } from '../types';
+import { formatVulnerabilityCount } from './vulnerabilityExport';
 
 export const DEPENDENCY_ANALYSIS_EXPORT_FILENAME = 'dependency-analysis.md';
 
@@ -47,14 +48,6 @@ const countByStatus = (dependencies: AnalyzedDependency[]): string => {
   return STATUS_DISPLAY_ORDER.filter((status) => counts.has(status))
     .map((status) => `${status}: ${counts.get(status)}`)
     .join(', ');
-};
-
-const formatVulnerabilityCount = (count: number | null): string => {
-  if (count === null) {
-    return '—';
-  }
-
-  return String(count);
 };
 
 const formatStatusTable = (status: VersionStatus, dependencies: AnalyzedDependency[]): string => {

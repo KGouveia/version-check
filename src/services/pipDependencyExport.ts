@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { AnalyzedPipDependency, PipDependencyAnalysisReport, VersionStatus } from '../types';
 import { STATUS_DISPLAY_ORDER } from './dependencyExport';
+import { formatVulnerabilityCount } from './vulnerabilityExport';
 
 const storageDirectoryName = 'Software Version Tracker';
 export const PIP_DEPENDENCY_ANALYSIS_EXPORT_FILENAME = 'pip-dependency-analysis.md';
@@ -43,16 +44,16 @@ const formatStatusTable = (
   }
 
   const header =
-    '| Package | Installed | Resolved | Latest (same minor line) | Latest (index) | Index | Error |';
+    '| Package | Installed | Resolved | Latest (same minor line) | Latest (index) | Vulnerabilities | Index | Error |';
   const separator =
-    '|---------|-----------|----------|--------------------------|---------------|------|-------|';
+    '|---------|-----------|----------|--------------------------|---------------|-----------------|------|-------|';
 
   const body = rows
     .map((dep) => {
       const label = escapeTableCell(dep.name);
       const pypiLink = `[${label}](${dep.downloadUrl})`;
 
-      return `| ${cell(dep.name)} | ${cell(dep.installedVersion)} | ${cell(dep.compareVersion)} | ${cell(dep.latestSameReleaseLineVersion)} | ${cell(dep.latestVersion)} | ${pypiLink} | ${cell(dep.error)} |`;
+      return `| ${cell(dep.name)} | ${cell(dep.installedVersion)} | ${cell(dep.compareVersion)} | ${cell(dep.latestSameReleaseLineVersion)} | ${cell(dep.latestVersion)} | ${formatVulnerabilityCount(dep.vulnerabilityCount)} | ${pypiLink} | ${cell(dep.error)} |`;
     })
     .join('\n');
 
@@ -74,8 +75,13 @@ export const formatPipDependencyAnalysisMarkdown = (
     `- **pythonPipInvoke**: ${escapeTableCell(report.pythonPipInvoke)}`,
     `- **analyzedAt**: ${report.analyzedAt}`,
     `- **counts**: ${counts || 'none'}`,
+    report.vulnerabilityCheckError
+      ? `- **vulnerabilityCheckError**: ${escapeTableCell(report.vulnerabilityCheckError)}`
+      : null,
     '',
-  ].join('\n');
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
 
   const tables = STATUS_DISPLAY_ORDER.map((status) =>
     formatStatusTable(status, report.dependencies),

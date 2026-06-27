@@ -24,6 +24,7 @@ export const scanGlobalPipModules = async (
       listError: null,
       pythonPipInvoke: report.pythonPipInvoke,
       pythonVersion: report.pythonVersion,
+      vulnerabilityCheckError: report.vulnerabilityCheckError,
     };
   } catch (err) {
     const message =

@@ -87,7 +87,7 @@ export const PipDependencyAnalyzerApp = () => {
             {!report && !isLoading && (
               <p className="mt-1 text-sm text-zinc-400">
                 Compare pip-installed packages (excluding editable local projects)
-                against configured pip index releases.
+                against configured pip index releases and OSV vulnerabilities.
               </p>
             )}
           </div>
@@ -127,6 +127,12 @@ export const PipDependencyAnalyzerApp = () => {
           {error && (
             <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
               {error}
+            </div>
+          )}
+
+          {report?.vulnerabilityCheckError && !error && (
+            <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">
+              Vulnerability check failed: {report.vulnerabilityCheckError}
             </div>
           )}
 

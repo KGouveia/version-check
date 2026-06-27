@@ -120,6 +120,8 @@ export interface AnalyzedPipDependency {
   downloadUrl: string;
   lastCheckedAt: string | null;
   error: string | null;
+  /** Known direct vulnerabilities for installedVersion; null when no version to check. */
+  vulnerabilityCount: number | null;
 }
 
 export interface PipDependencyAnalysisReport {
@@ -129,6 +131,7 @@ export interface PipDependencyAnalysisReport {
   projectLabel: string;
   dependencies: AnalyzedPipDependency[];
   analyzedAt: string;
+  vulnerabilityCheckError?: string | null;
 }
 
 export interface GlobalNpmModule {
@@ -162,4 +165,5 @@ export interface GlobalPipModulesReport {
   listError: string | null;
   pythonPipInvoke: string;
   pythonVersion: string | null;
+  vulnerabilityCheckError?: string | null;
 }
